@@ -5,18 +5,18 @@ the video transcoding in a background worker.
 
 ```
 DoomScroller/
-├── backend/DoomScroller.Api/   ASP.NET Core 8 Web API
-└── doomscroller-frontend/      Angular 19 app
+├── backend/DoomScroller.Api/   ASP.NET Core 10 Web API (EF Core 10)
+└── doomscroller-frontend/      Angular 22 app (zoneless, signals)
 ```
 
 > **Note on "Angular.js"**: AngularJS (1.x) has been end-of-life since 2022, so this was
-> built with modern Angular (standalone components, v19) instead — same name, current
+> built with current Angular (v22: standalone, zoneless, signals) instead — same name, current
 > framework. Say the word if you actually need the legacy AngularJS.
 
 ## 1. Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Node.js 20+](https://nodejs.org/) and npm
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [Node.js](https://nodejs.org/) 22.22.3+ or 24.15+ (Angular 22's CLI refuses older builds) and npm
 - `ffmpeg` and `ffprobe` on your `PATH` — for the "conservative" preset's hardware path,
   build/obtain ffmpeg with `--enable-nvenc` (NVIDIA) or `--enable-amf` (AMD); otherwise it
   transparently falls back to software `libx265`.
@@ -29,8 +29,8 @@ dotnet restore
 dotnet run
 ```
 
-Listens on `http://localhost:5080` (see `appsettings.json`). Swagger UI is at
-`http://localhost:5080/swagger` in development. Uploaded originals land in
+Listens on `http://localhost:5080` (see `appsettings.json`). The OpenAPI document is at
+`http://localhost:5080/openapi/v1.json` in development (built-in `AddOpenApi`, no Swashbuckle). Uploaded originals land in
 `Storage/uploads/`, transcoded renditions in `Storage/media/` (served at `/media/...`).
 
 ## 3. Run the frontend
@@ -77,7 +77,77 @@ installed separately for it to actually run) and AMD AMF needs its headers vendo
 (and put `tools/ffmpeg/lib` on `LD_LIBRARY_PATH` if it built with `--enable-shared`, which
 is the default here).
 
-## 5. How the configuration options work
+## 5. Database (SQLite or MySQL)
+
+Picked via config, standard ASP.NET Core style — `appsettings.json`, overridable with the
+usual double-underscore env var convention (no separate `.env` file/package needed; that's
+just how ASP.NET Core's built-in configuration already works):
+
+```json
+"Database": {
+  "Provider": "Sqlite",                          // or "MySql"
+  "SqlitePath": "Storage/doomscroller.db",        // only used for Sqlite; relative to the app,
+                                                   // not the shell's current directory
+  "MySqlServerVersion": "8.0.36"                  // pins the version dotnet-ef assumes so it
+},                                                 // doesn't need a live server just to add a
+                                                   // migration - set to "auto" to detect instead
+"ConnectionStrings": {
+  "MySql": "Server=localhost;Port=3306;Database=doomscroller;User=doomscroller;Password=changeme;"
+}
+```
+
+or via env vars: `DATABASE__PROVIDER=MySql`, `CONNECTIONSTRINGS__MYSQL=...`, etc.
+
+> **MySQL provider note**: the official Pomelo provider has no EF Core 10 release yet (its
+> last release is 9.0.0), so the project references the community fork
+> `Microting.EntityFrameworkCore.MySql` 10.x, which is the maintained EF Core 10
+> continuation with the same `UseMySql()` API. If you'd rather stay on the official
+> provider, the alternative is EF Core 9 + Pomelo 9.0.0 (it runs fine on net10.0) — swap the
+> package references and the EF `10.0.*` versions in `DoomScroller.Api.csproj`.
+
+The app applies any pending migrations automatically on startup (`db.Database.Migrate()`
+in `Program.cs`) — fine for local dev; for a real deployment you'd more likely run
+`dotnet ef database update` as its own release step instead of migrating on every boot.
+
+### Migrations
+
+EF Core ties migrations to a concrete `DbContext` type, so — per Microsoft's own guidance
+for supporting more than one provider off a single model — there's a thin subclass per
+provider (`SqliteDoomScrollerDbContext`, `MySqlDoomScrollerDbContext`, both in
+`Data/DoomScrollerDbContext.cs`) and a separate migrations folder for each:
+
+```
+backend/DoomScroller.Api/Migrations/
+├── Sqlite/  (InitialCreate.cs, .Designer.cs, SqliteDoomScrollerDbContextModelSnapshot.cs)
+└── MySql/   (InitialCreate.cs, .Designer.cs, MySqlDoomScrollerDbContextModelSnapshot.cs)
+```
+
+Since EF Core 9, `Migrate()` throws when the model doesn't match the last snapshot. Because
+the initial migrations are hand-written, `Program.cs` currently ignores that check
+(`PendingModelChangesWarning`) — remove the two `ConfigureWarnings(...)` calls after
+regenerating for real.
+
+**Honesty note**: this sandbox couldn't reach `api.nuget.org` to actually run the
+`dotnet ef` CLI while building this, so the `InitialCreate` migrations above were
+hand-authored to match the entity model rather than tool-generated — the schema they
+create is correct, but if `dotnet ef migrations add` ever complains about "pending model
+changes" that don't seem real, that's why. One command replaces them with the real thing:
+
+```bash
+make migrations-sqlite   # or:
+make migrations-mysql
+```
+
+(both install the `dotnet-ef` global tool first if it's missing). Adding a *new* migration
+later, once the initial one is verified, is the normal:
+
+```bash
+cd backend/DoomScroller.Api
+dotnet ef migrations add SomeChange --context SqliteDoomScrollerDbContext --output-dir Migrations/Sqlite --namespace DoomScroller.Api.Migrations.Sqlite
+dotnet ef migrations add SomeChange --context MySqlDoomScrollerDbContext  --output-dir Migrations/MySql  --namespace DoomScroller.Api.Migrations.MySql
+```
+
+## 6. How the configuration options work
 
 Everything is submitted with the upload as multipart form fields and turned into an
 ffmpeg command per rendition by `FfmpegService.BuildFfmpegArgs` (see
@@ -101,7 +171,7 @@ Uploads return immediately (`202 Accepted`) with `status: Queued`; a `Background
 HTTP request. The frontend polls `GET /api/videos/{id}` (feed polls `GET /api/videos` every
 8s) until renditions flip to `Ready`.
 
-## 6. API surface
+## 7. API surface
 
 - `POST /api/videos` — multipart upload: `file`, `title`, `preset`, `container`,
   `forceCopyAudioIfSupported`, `resolutionTargets`.
@@ -111,10 +181,8 @@ HTTP request. The frontend polls `GET /api/videos/{id}` (feed polls `GET /api/vi
   driven by the backend instead of a second hard-coded copy.
 - `GET /media/{renditionId}.{ext}` — static file serving of a transcoded rendition.
 
-## 7. Known corners cut for "small clone" scope
+## 8. Known corners cut for "small clone" scope
 
-- Video storage is an in-memory repository (`InMemoryVideoRepository`) — restarting the API
-  loses the catalog. Swap in EF Core + a real database when this needs to survive a restart.
 - No auth/accounts, no likes/comments, no thumbnails — the feed just autoplays each
   rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;

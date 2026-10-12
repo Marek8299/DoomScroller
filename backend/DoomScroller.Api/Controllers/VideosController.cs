@@ -77,7 +77,7 @@ public class VideosController : ControllerBase
             await file.CopyToAsync(stream);
         }
 
-        _repository.Add(video);
+        await _repository.AddAsync(video);
         _queue.Enqueue(video.Id);
 
         _logger.LogInformation("Queued video {VideoId} ({FileName}, {Bytes} bytes)", video.Id, file.FileName, file.Length);
@@ -87,17 +87,17 @@ public class VideosController : ControllerBase
 
     /// <summary>The scrollable feed: most recently uploaded, fully-processed videos first.</summary>
     [HttpGet]
-    public ActionResult<IReadOnlyList<VideoItem>> GetFeed([FromQuery] int skip = 0, [FromQuery] int take = 10)
+    public async Task<ActionResult<IReadOnlyList<VideoItem>>> GetFeed([FromQuery] int skip = 0, [FromQuery] int take = 10)
     {
         take = Math.Clamp(take, 1, 50);
-        return Ok(_repository.GetFeed(skip, take));
+        return Ok(await _repository.GetFeedAsync(skip, take));
     }
 
     /// <summary>Poll this while a video is Queued/Processing to find out when it's Ready.</summary>
     [HttpGet("{id:guid}")]
-    public ActionResult<VideoItem> GetById(Guid id)
+    public async Task<ActionResult<VideoItem>> GetById(Guid id)
     {
-        var video = _repository.Get(id);
+        var video = await _repository.GetAsync(id);
         return video is null ? NotFound() : Ok(video);
     }
 }

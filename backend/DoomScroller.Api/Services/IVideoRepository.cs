@@ -1,48 +1,50 @@
-using System.Collections.Concurrent;
+using DoomScroller.Api.Data;
 using DoomScroller.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace DoomScroller.Api.Services;
 
 public interface IVideoRepository
 {
-    void Add(VideoItem video);
-    VideoItem? Get(Guid id);
-    VideoRendition? GetRendition(Guid renditionId, out VideoItem? owner);
-    IReadOnlyList<VideoItem> GetFeed(int skip, int take);
+    Task AddAsync(VideoItem video, CancellationToken ct = default);
+    Task<VideoItem?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<VideoItem>> GetFeedAsync(int skip, int take, CancellationToken ct = default);
+
+    /// <summary>
+    /// Persists changes made to an entity previously returned by this same repository
+    /// instance (i.e. within the same DbContext/scope) - there's nothing to re-attach,
+    /// just flush the tracked changes.
+    /// </summary>
+    Task SaveChangesAsync(CancellationToken ct = default);
 }
 
-/// <summary>
-/// Simple process-lifetime store. Good enough for a demo clone; swap for EF Core + a
-/// real database (Postgres/SQL Server) once you need videos to survive a restart.
-/// </summary>
-public class InMemoryVideoRepository : IVideoRepository
+/// <summary>EF Core-backed repository. Works against whichever provider (SQLite/MySQL) is registered in DI.</summary>
+public class EfVideoRepository : IVideoRepository
 {
-    private readonly ConcurrentDictionary<Guid, VideoItem> _videos = new();
+    private readonly DoomScrollerDbContext _db;
 
-    public void Add(VideoItem video) => _videos[video.Id] = video;
-
-    public VideoItem? Get(Guid id) => _videos.GetValueOrDefault(id);
-
-    public VideoRendition? GetRendition(Guid renditionId, out VideoItem? owner)
+    public EfVideoRepository(DoomScrollerDbContext db)
     {
-        foreach (var video in _videos.Values)
-        {
-            var rendition = video.Renditions.FirstOrDefault(r => r.Id == renditionId);
-            if (rendition is not null)
-            {
-                owner = video;
-                return rendition;
-            }
-        }
-        owner = null;
-        return null;
+        _db = db;
     }
 
-    public IReadOnlyList<VideoItem> GetFeed(int skip, int take) =>
-        _videos.Values
+    public async Task AddAsync(VideoItem video, CancellationToken ct = default)
+    {
+        _db.Videos.Add(video);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public Task<VideoItem?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.Videos.Include(v => v.Renditions).FirstOrDefaultAsync(v => v.Id == id, ct);
+
+    public async Task<IReadOnlyList<VideoItem>> GetFeedAsync(int skip, int take, CancellationToken ct = default) =>
+        await _db.Videos
+            .Include(v => v.Renditions)
             .Where(v => v.Status == RenditionStatus.Ready)
             .OrderByDescending(v => v.UploadedAtUtc)
             .Skip(skip)
             .Take(take)
-            .ToList();
+            .ToListAsync(ct);
+
+    public Task SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace DoomScroller.Api.Models;
@@ -39,6 +40,7 @@ public class VideoRendition
     [JsonIgnore]
     public string FilePath { get; set; } = string.Empty;
 
+    [NotMapped]
     public string FileName => Path.GetFileName(FilePath);
 
     public long SizeBytes { get; set; }
@@ -46,6 +48,7 @@ public class VideoRendition
     public string? ErrorMessage { get; set; }
 
     /// <summary>Relative URL the frontend can stream this rendition from.</summary>
+    [NotMapped]
     public string Url => $"/media/{Id}{Container.ToExtension()}";
 }
 

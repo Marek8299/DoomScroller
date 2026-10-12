@@ -1,0 +1,98 @@
+<div class="upload-page">
+  <a routerLink="/" class="back-link">&larr; Feed</a>
+  <h1>Upload a video</h1>
+
+  @if (errorMessage(); as message) {
+    <div class="status error">{{ message }}</div>
+  }
+
+  @if (uploadedVideoId()) {
+    <div class="success">
+      <p>Uploaded! Transcoding in the background.</p>
+      <button type="button" (click)="goToFeed()">Go to feed</button>
+    </div>
+  } @else if (formOptions(); as options) {
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <label class="file-drop">
+        <input type="file" accept="video/*" (change)="onFileSelected($event)" />
+        <span>{{ selectedFile()?.name ?? 'Choose a video file…' }}</span>
+      </label>
+
+      <label>
+        Title
+        <input type="text" formControlName="title" placeholder="A short caption" />
+      </label>
+
+      <fieldset>
+        <legend>Encoding preset</legend>
+        @for (preset of options.presets; track preset.value) {
+          <label class="radio">
+            <input type="radio" formControlName="preset" [value]="preset.value" />
+            {{ preset.label }}
+          </label>
+        }
+      </fieldset>
+
+      <fieldset>
+        <legend>Container</legend>
+        @for (container of options.containers; track container.value) {
+          <label class="radio">
+            <input type="radio" formControlName="container" [value]="container.value" />
+            {{ container.label }}
+          </label>
+        }
+      </fieldset>
+
+      <fieldset>
+        <legend>Audio</legend>
+        <label class="checkbox">
+          <input type="checkbox" formControlName="forceCopyAudioIfSupported" />
+          Copy source audio when possible (aac / mp3 / opus - wma is always re-encoded)
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Resolutions to generate</legend>
+        @for (res of options.resolutionPresets; track res.value) {
+          <label class="radio">
+            <input
+              type="radio"
+              name="resolutionMode"
+              [checked]="!customResolutions() && form.controls.resolutionTargets.value === res.value"
+              (change)="selectResolutionPreset(res.value)"
+            />
+            {{ res.label }}
+          </label>
+        }
+        <label class="radio">
+          <input
+            type="radio"
+            name="resolutionMode"
+            [checked]="customResolutions()"
+            (change)="selectCustomResolutions()"
+          />
+          Custom
+        </label>
+        @if (customResolutions()) {
+          <input
+            type="text"
+            formControlName="resolutionTargets"
+            placeholder="e.g. 360,720,1080"
+            class="custom-res-input"
+          />
+        }
+        <p class="hint">Anything taller than the source video's own resolution is skipped automatically.</p>
+      </fieldset>
+
+      <button type="submit" [disabled]="!selectedFile() || uploading() || form.invalid">
+        {{ uploading() ? 'Uploading… ' + progressPercent() + '%' : 'Upload & convert' }}
+      </button>
+
+      @if (uploading()) {
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="progressPercent()"></div>
+        </div>
+      }
+    </form>
+  }
+</div>

@@ -1,9 +1,9 @@
 import { Routes } from '@angular/router';
-import { FeedComponent } from './feed/feed.component';
-import { UploadComponent } from './upload/upload.component';
+import { Feed } from './feed/feed';
+import { Upload } from './upload/upload';
 
 export const routes: Routes = [
-  { path: '', component: FeedComponent },
-  { path: 'upload', component: UploadComponent },
+  { path: '', component: Feed },
+  { path: 'upload', component: Upload },
   { path: '**', redirectTo: '' }
 ];

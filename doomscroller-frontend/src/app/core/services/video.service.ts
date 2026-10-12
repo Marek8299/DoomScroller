@@ -1,6 +1,6 @@
 import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { Observable, filter, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ConversionOptions, UploadFormOptions, VideoItem } from '../models/video.model';
 
@@ -12,9 +12,8 @@ export interface UploadProgress {
 
 @Injectable({ providedIn: 'root' })
 export class VideoService {
+  private readonly http = inject(HttpClient);
   private readonly base = environment.apiBaseUrl;
-
-  constructor(private readonly http: HttpClient) {}
 
   getUploadFormOptions(): Observable<UploadFormOptions> {
     return this.http.get<UploadFormOptions>(`${this.base}/config/options`);
@@ -40,19 +39,14 @@ export class VideoService {
 
     const req = new HttpRequest('POST', `${this.base}/videos`, formData, { reportProgress: true });
 
-    return new Observable<UploadProgress>((subscriber) => {
-      this.http.request(req).subscribe({
-        next: (event) => {
-          if (event.type === HttpEventType.UploadProgress && event.total) {
-            subscriber.next({ progressPercent: Math.round((100 * event.loaded) / event.total), done: false });
-          } else if (event.type === HttpEventType.Response) {
-            subscriber.next({ progressPercent: 100, done: true, video: event.body as VideoItem });
-            subscriber.complete();
-          }
-        },
-        error: (err) => subscriber.error(err)
-      });
-    });
+    return this.http.request<VideoItem>(req).pipe(
+      filter((e) => e.type === HttpEventType.UploadProgress || e.type === HttpEventType.Response),
+      map((e): UploadProgress =>
+        e.type === HttpEventType.Response
+          ? { progressPercent: 100, done: true, video: e.body as VideoItem }
+          : { progressPercent: e.total ? Math.round((100 * e.loaded) / e.total) : 0, done: false }
+      )
+    );
   }
 
   mediaUrl(relativeUrl: string): string {

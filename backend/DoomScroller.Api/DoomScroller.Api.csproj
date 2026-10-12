@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
@@ -9,8 +9,26 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Swagger/OpenAPI for quick manual testing of the API -->
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <!-- Built-in OpenAPI document generation (GET /openapi/v1.json in Development) -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Persistence: SQLite and MySQL, selected at runtime via Database:Provider (see appsettings.json).
+         The Microsoft.* packages float on 10.0.* so they always land on a patch level the MySQL
+         provider is happy with; pin exact versions once restore has picked some. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
+
+    <!-- The official Pomelo provider has no EF Core 10 release yet (last release: 9.0.0). The
+         Microting fork is the maintained EF Core 10 continuation: same UseMySql() API, same
+         Microsoft.EntityFrameworkCore namespace for UseMySql/ServerVersion. -->
+    <PackageReference Include="Microting.EntityFrameworkCore.MySql" Version="10.0.12" />
+
+    <!-- Design-time tooling only (dotnet ef migrations add / database update) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

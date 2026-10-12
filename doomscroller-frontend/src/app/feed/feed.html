@@ -1,0 +1,32 @@
+@if (loading()) {
+  <div class="status">Loading feed…</div>
+} @else if (error(); as message) {
+  <div class="status error">{{ message }}</div>
+} @else {
+  <div class="feed">
+    @if (items().length === 0) {
+      <div class="empty-state">
+        <p>No videos yet.</p>
+        <a routerLink="/upload" class="cta">Upload the first one</a>
+      </div>
+    }
+
+    @for (item of items(); track item.video.id) {
+      <section class="feed-item">
+        @if (item.src; as src) {
+          <video [src]="src" class="feed-video" playsinline loop muted controls preload="metadata"></video>
+        }
+
+        <div class="overlay">
+          <h3>{{ item.video.title }}</h3>
+          <p class="meta">
+            {{ item.video.options.preset }} · {{ item.video.options.container }}
+            @if (item.video.probe; as probe) {
+              · {{ probe.width }}×{{ probe.height }}
+            }
+          </p>
+        </div>
+      </section>
+    }
+  </div>
+}

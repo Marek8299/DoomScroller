@@ -156,3 +156,41 @@ ffmpeg-custom:
 ## Just removes the temp checkout, e.g. after a failed/aborted build.
 ffmpeg-clean:
 	rm -rf $(FFMPEG_TMP_DIR)
+
+# --- Database migrations ---------------------------------------------------------
+#
+# The repo ships hand-authored initial migrations under backend/DoomScroller.Api/Migrations/
+# {Sqlite,MySql}/ (this sandbox couldn't reach api.nuget.org to run the real `dotnet ef`
+# tool while building this). They create the right schema, but if `dotnet ef` ever
+# complains about "pending model changes" that don't match reality, regenerate for real
+# with the targets below - that's the authoritative source of truth going forward.
+
+API_DIR := backend/DoomScroller.Api
+
+.PHONY: ef-tools migrations-sqlite migrations-mysql migrations-clean
+
+## One-time: installs the dotnet-ef CLI tool (needs NuGet access).
+ef-tools:
+	dotnet tool install --global dotnet-ef || dotnet tool update --global dotnet-ef
+
+## Regenerates the SQLite initial migration for real, replacing the hand-authored one.
+migrations-sqlite: ef-tools
+	rm -rf $(API_DIR)/Migrations/Sqlite
+	cd $(API_DIR) && dotnet ef migrations add InitialCreate \
+		--context SqliteDoomScrollerDbContext \
+		--output-dir Migrations/Sqlite \
+		--namespace DoomScroller.Api.Migrations.Sqlite
+
+## Regenerates the MySQL initial migration for real, replacing the hand-authored one.
+## Needs ConnectionStrings:MySql to point at a real reachable server unless
+## Database:MySqlServerVersion is set to a fixed version in appsettings.json.
+migrations-mysql: ef-tools
+	rm -rf $(API_DIR)/Migrations/MySql
+	cd $(API_DIR) && dotnet ef migrations add InitialCreate \
+		--context MySqlDoomScrollerDbContext \
+		--output-dir Migrations/MySql \
+		--namespace DoomScroller.Api.Migrations.MySql
+
+## Deletes both migration sets - use before regenerating from scratch.
+migrations-clean:
+	rm -rf $(API_DIR)/Migrations/Sqlite $(API_DIR)/Migrations/MySql

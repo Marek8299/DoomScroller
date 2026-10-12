@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using DoomScroller.Api.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DoomScroller.Api.Services;
 
@@ -26,20 +27,20 @@ public class VideoProcessingQueue : IVideoProcessingQueue
 public class VideoProcessingWorker : BackgroundService
 {
     private readonly IVideoProcessingQueue _queue;
-    private readonly IVideoRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IFfmpegService _ffmpeg;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<VideoProcessingWorker> _logger;
 
     public VideoProcessingWorker(
         IVideoProcessingQueue queue,
-        IVideoRepository repository,
+        IServiceScopeFactory scopeFactory,
         IFfmpegService ffmpeg,
         IWebHostEnvironment env,
         ILogger<VideoProcessingWorker> logger)
     {
         _queue = queue;
-        _repository = repository;
+        _scopeFactory = scopeFactory;
         _ffmpeg = ffmpeg;
         _env = env;
         _logger = logger;
@@ -49,12 +50,19 @@ public class VideoProcessingWorker : BackgroundService
     {
         await foreach (var videoId in _queue.ReadAllAsync(stoppingToken))
         {
-            var video = _repository.Get(videoId);
+            // IVideoRepository wraps a DbContext, which isn't thread-safe and isn't meant
+            // to outlive a single unit of work - so each queued video gets its own scope,
+            // the same way a single HTTP request would.
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
+
+            var video = await repository.GetAsync(videoId, stoppingToken);
             if (video is null) continue;
 
             try
             {
                 video.Status = RenditionStatus.Processing;
+                await repository.SaveChangesAsync(stoppingToken);
 
                 video.Probe = await _ffmpeg.ProbeAsync(video.SourceFilePath, stoppingToken);
 
@@ -82,6 +90,8 @@ public class VideoProcessingWorker : BackgroundService
                 video.ErrorMessage = ex.Message;
                 _logger.LogError(ex, "Processing failed for video {VideoId}", videoId);
             }
+
+            await repository.SaveChangesAsync(stoppingToken);
         }
     }
 }
