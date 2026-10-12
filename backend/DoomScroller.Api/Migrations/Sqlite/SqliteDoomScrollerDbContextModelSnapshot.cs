@@ -47,7 +47,7 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("UploadedAtUtc")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 

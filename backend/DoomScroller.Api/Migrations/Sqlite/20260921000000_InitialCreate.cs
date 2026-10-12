@@ -17,7 +17,7 @@ namespace DoomScroller.Api.Migrations.Sqlite
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
                     OriginalFileName = table.Column<string>(type: "TEXT", maxLength: 260, nullable: false),
-                    UploadedAtUtc = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    UploadedAtUtc = table.Column<DateTimeOffset>(type: "INTEGER", nullable: false),
                     SourceFilePath = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
                     Status = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
                     ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),

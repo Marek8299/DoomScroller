@@ -1,5 +1,6 @@
 using DoomScroller.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DoomScroller.Api.Data;
 
@@ -90,6 +91,27 @@ public class SqliteDoomScrollerDbContext : DoomScrollerDbContext
 {
     public SqliteDoomScrollerDbContext(DbContextOptions<SqliteDoomScrollerDbContext> options) : base(options)
     {
+    }
+
+    /// <summary>
+    /// SQLite's EF Core provider stores DateTimeOffset as TEXT and refuses to translate
+    /// ORDER BY / comparisons on it ("SQLite does not support expressions of type
+    /// 'DateTimeOffset' in ORDER BY clauses"). Storing UTC ticks as an INTEGER keeps the
+    /// C# model unchanged and makes ordering work. All timestamps here are UTC
+    /// (DateTimeOffset.UtcNow), so nothing is lost by dropping the offset.
+    /// </summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTimeOffset>()
+            .HaveConversion<UtcTicksConverter>();
+    }
+
+    private sealed class UtcTicksConverter : ValueConverter<DateTimeOffset, long>
+    {
+        public UtcTicksConverter()
+            : base(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero))
+        {
+        }
     }
 }
 
