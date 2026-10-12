@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>DoomScroller.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Swagger/OpenAPI for quick manual testing of the API -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Media storage lives outside source control -->
+    <Content Remove="Storage\**" />
+    <None Include="Storage\**" />
+  </ItemGroup>
+
+</Project>

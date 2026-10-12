@@ -1,0 +1,30 @@
+<div class="feed" *ngIf="!loading && !error">
+  <div class="empty-state" *ngIf="videos.length === 0">
+    <p>No videos yet.</p>
+    <a routerLink="/upload" class="cta">Upload the first one</a>
+  </div>
+
+  <section class="feed-item" *ngFor="let video of videos; trackBy: trackByVideoId">
+    <video
+      *ngIf="bestRenditionUrl(video) as src"
+      [src]="src"
+      class="feed-video"
+      playsinline
+      loop
+      muted
+      controls
+      preload="metadata"
+    ></video>
+
+    <div class="overlay">
+      <h3>{{ video.title }}</h3>
+      <p class="meta">
+        {{ video.options.preset }} · {{ video.options.container }}
+        <span *ngIf="video.probe"> · {{ video.probe.width }}×{{ video.probe.height }}</span>
+      </p>
+    </div>
+  </section>
+</div>
+
+<div class="status" *ngIf="loading">Loading feed…</div>
+<div class="status error" *ngIf="error">{{ error }}</div>
