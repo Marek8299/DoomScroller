@@ -4,10 +4,11 @@ import { RouterLink } from '@angular/router';
 import { interval, switchMap } from 'rxjs';
 import { VideoService } from '../core/services/video.service';
 import { VideoItem } from '../core/models/video.model';
+import { AutoPlayInView } from './auto-play-in-view';
 
 @Component({
   selector: 'app-feed',
-  imports: [RouterLink],
+  imports: [RouterLink, AutoPlayInView],
   templateUrl: './feed.html',
   styleUrl: './feed.scss'
 })

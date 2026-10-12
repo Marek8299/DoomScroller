@@ -14,7 +14,7 @@
     @for (item of items(); track item.video.id) {
       <section class="feed-item">
         @if (item.src; as src) {
-          <video [src]="src" class="feed-video" playsinline loop muted controls preload="metadata"></video>
+          <video appAutoPlayInView [src]="src" class="feed-video" playsinline loop muted controls preload="metadata"></video>
         }
 
         <div class="overlay">
