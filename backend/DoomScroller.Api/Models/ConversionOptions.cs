@@ -26,6 +26,18 @@ public class ConversionOptions
     /// </summary>
     public string ResolutionTargets { get; set; } = "original";
 
+    public ConversionOptions Clone() => (ConversionOptions)MemberwiseClone();
+
+    /// <summary>True when ResolutionTargets is "original" (or blank) or a comma-separated list of positive heights.</summary>
+    public bool IsResolutionTargetsValid()
+    {
+        var raw = (ResolutionTargets ?? string.Empty).Trim();
+        if (raw.Length == 0 || raw.Equals("original", StringComparison.OrdinalIgnoreCase)) return true;
+
+        var tokens = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Length > 0 && tokens.All(t => int.TryParse(t, out var h) && h > 0);
+    }
+
     private static readonly HashSet<string> SupportedCopyAudioCodecs = new(StringComparer.OrdinalIgnoreCase)
     {
         "aac", "mp3", "opus"

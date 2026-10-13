@@ -23,6 +23,10 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .ValueGeneratedNever()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
@@ -30,6 +34,10 @@ namespace DoomScroller.Api.Migrations.Sqlite
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PerceptualHash")
+                        .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SourceFilePath")

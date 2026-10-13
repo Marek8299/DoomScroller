@@ -1,6 +1,7 @@
 using DoomScroller.Api.Models;
 using DoomScroller.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace DoomScroller.Api.Controllers;
 
@@ -11,6 +12,7 @@ public class VideosController : ControllerBase
     private readonly IVideoRepository _repository;
     private readonly IVideoProcessingQueue _queue;
     private readonly IWebHostEnvironment _env;
+    private readonly ConversionOptions _conversion;
     private readonly ILogger<VideosController> _logger;
 
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -22,28 +24,26 @@ public class VideosController : ControllerBase
         IVideoRepository repository,
         IVideoProcessingQueue queue,
         IWebHostEnvironment env,
+        IOptions<ConversionOptions> conversion,
         ILogger<VideosController> logger)
     {
         _repository = repository;
         _queue = queue;
         _env = env;
+        _conversion = conversion.Value;
         _logger = logger;
     }
 
     /// <summary>
-    /// Upload a source video plus the desired conversion options. Returns immediately
-    /// with the new video's id and status = Queued; transcoding happens in the background.
+    /// Upload a video with a title and optional description. Returns immediately with the new
+    /// video's id and status = Queued; transcoding happens in the background using the
+    /// server-configured "Conversion" settings.
     /// </summary>
     [HttpPost]
     [RequestSizeLimit(2_000_000_000)] // 2 GB - raise/lower to taste, also set Kestrel limits for real deployments
-    public async Task<ActionResult<VideoItem>> Upload(
-        [FromForm] IFormFile file,
-        [FromForm] string? title,
-        [FromForm] EncodingPreset preset = EncodingPreset.WebOptimized,
-        [FromForm] ContainerFormat container = ContainerFormat.Mp4,
-        [FromForm] bool forceCopyAudioIfSupported = true,
-        [FromForm] string resolutionTargets = "original")
+    public async Task<ActionResult<VideoItem>> Upload([FromForm] UploadVideoRequest request)
     {
+        var file = request.File;
         if (file is null || file.Length == 0)
         {
             return BadRequest("No file uploaded.");
@@ -55,21 +55,32 @@ public class VideosController : ControllerBase
             return BadRequest($"Unsupported file extension '{extension}'.");
         }
 
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? Path.GetFileNameWithoutExtension(file.FileName)
+            : request.Title.Trim();
+        if (title.Length > UploadVideoRequest.MaxTitleLength)
+        {
+            return BadRequest($"Title can be at most {UploadVideoRequest.MaxTitleLength} characters.");
+        }
+
+        var description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        if (description is not null && description.Length > UploadVideoRequest.MaxDescriptionLength)
+        {
+            return BadRequest($"Description can be at most {UploadVideoRequest.MaxDescriptionLength} characters.");
+        }
+
         var uploadsDir = Path.Combine(_env.ContentRootPath, "Storage", "uploads");
         Directory.CreateDirectory(uploadsDir);
 
         var video = new VideoItem
         {
-            Title = string.IsNullOrWhiteSpace(title) ? Path.GetFileNameWithoutExtension(file.FileName) : title,
+            Title = title,
+            Description = description,
             OriginalFileName = file.FileName,
             SourceFilePath = Path.Combine(uploadsDir, $"{Guid.NewGuid()}{extension}"),
-            Options = new ConversionOptions
-            {
-                Preset = preset,
-                Container = container,
-                ForceCopyAudioIfSupported = forceCopyAudioIfSupported,
-                ResolutionTargets = resolutionTargets
-            }
+            // Snapshot of the server config at upload time, so a later config change doesn't
+            // rewrite history for videos that are already queued or encoded.
+            Options = _conversion.Clone()
         };
 
         await using (var stream = System.IO.File.Create(video.SourceFilePath))

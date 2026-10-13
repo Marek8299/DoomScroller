@@ -26,6 +26,10 @@ namespace DoomScroller.Api.Migrations.MySql
                         .ValueGeneratedNever()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
@@ -34,6 +38,10 @@ namespace DoomScroller.Api.Migrations.MySql
                         .IsRequired()
                         .HasMaxLength(260)
                         .HasColumnType("varchar(260)");
+
+                    b.Property<string>("PerceptualHash")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
 
                     b.Property<string>("SourceFilePath")
                         .IsRequired()

@@ -2,7 +2,7 @@ import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ConversionOptions, UploadFormOptions, VideoItem } from '../models/video.model';
+import { VideoItem } from '../models/video.model';
 
 export interface UploadProgress {
   progressPercent: number;
@@ -15,10 +15,6 @@ export class VideoService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiBaseUrl;
 
-  getUploadFormOptions(): Observable<UploadFormOptions> {
-    return this.http.get<UploadFormOptions>(`${this.base}/config/options`);
-  }
-
   getFeed(skip = 0, take = 10): Observable<VideoItem[]> {
     return this.http.get<VideoItem[]>(`${this.base}/videos`, { params: { skip, take } });
   }
@@ -28,14 +24,11 @@ export class VideoService {
   }
 
   /** Uploads with progress events so the UI can show a real progress bar for large files. */
-  upload(file: File, title: string, options: ConversionOptions): Observable<UploadProgress> {
+  upload(file: File, title: string, description: string): Observable<UploadProgress> {
     const formData = new FormData();
     formData.append('file', file, file.name);
     formData.append('title', title);
-    formData.append('preset', options.preset);
-    formData.append('container', options.container);
-    formData.append('forceCopyAudioIfSupported', String(options.forceCopyAudioIfSupported));
-    formData.append('resolutionTargets', options.resolutionTargets);
+    formData.append('description', description);
 
     const req = new HttpRequest('POST', `${this.base}/videos`, formData, { reportProgress: true });
 

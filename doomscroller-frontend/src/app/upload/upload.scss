@@ -42,49 +42,24 @@ label {
   font-size: 0.9rem;
   color: #ddd;
 
-  input[type='text'] {
+  input[type='text'],
+  textarea {
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 6px;
     padding: 10px;
     color: #fff;
+    font: inherit;
+  }
+
+  .optional {
+    color: #777;
   }
 }
 
-fieldset {
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 12px 14px;
 
-  legend {
-    padding: 0 6px;
-    font-size: 0.85rem;
-    color: #aaa;
-  }
-}
 
-.radio,
-.checkbox {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-}
 
-.custom-res-input {
-  margin-top: 6px;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 6px;
-  padding: 8px;
-  color: #fff;
-}
-
-.hint {
-  margin: 8px 0 0;
-  font-size: 0.75rem;
-  color: #777;
-}
 
 button[type='submit'] {
   background: #fe2c55;

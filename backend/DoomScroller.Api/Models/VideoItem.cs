@@ -7,6 +7,7 @@ public class VideoItem
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public string OriginalFileName { get; init; } = string.Empty;
     public DateTimeOffset UploadedAtUtc { get; init; } = DateTimeOffset.UtcNow;
     public ConversionOptions Options { get; init; } = new();
@@ -18,6 +19,14 @@ public class VideoItem
     public string? ErrorMessage { get; set; }
 
     public VideoProbeResult? Probe { get; set; }
+
+    /// <summary>
+    /// Perceptual hash of the source video: 16 evenly spaced frames, each a 64-bit DCT pHash
+    /// written as 16 hex chars (256 chars total). Survives re-encoding/resizing, unlike a file
+    /// hash. Null until processing has run (or if hashing failed). Server-side only.
+    /// </summary>
+    [JsonIgnore]
+    public string? PerceptualHash { get; set; }
 
     public List<VideoRendition> Renditions { get; init; } = new();
 }

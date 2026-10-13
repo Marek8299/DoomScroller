@@ -19,12 +19,9 @@
 
         <div class="overlay">
           <h3>{{ item.video.title }}</h3>
-          <p class="meta">
-            {{ item.video.options.preset }} · {{ item.video.options.container }}
-            @if (item.video.probe; as probe) {
-              · {{ probe.width }}×{{ probe.height }}
-            }
-          </p>
+          @if (item.video.description; as description) {
+            <p class="meta">{{ description }}</p>
+          }
         </div>
       </section>
     }

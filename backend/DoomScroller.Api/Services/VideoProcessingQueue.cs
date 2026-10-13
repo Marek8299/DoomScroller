@@ -29,6 +29,7 @@ public class VideoProcessingWorker : BackgroundService
     private readonly IVideoProcessingQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IFfmpegService _ffmpeg;
+    private readonly IVideoFingerprintService _fingerprint;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<VideoProcessingWorker> _logger;
 
@@ -36,12 +37,14 @@ public class VideoProcessingWorker : BackgroundService
         IVideoProcessingQueue queue,
         IServiceScopeFactory scopeFactory,
         IFfmpegService ffmpeg,
+        IVideoFingerprintService fingerprint,
         IWebHostEnvironment env,
         ILogger<VideoProcessingWorker> logger)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
         _ffmpeg = ffmpeg;
+        _fingerprint = fingerprint;
         _env = env;
         _logger = logger;
     }
@@ -65,6 +68,17 @@ public class VideoProcessingWorker : BackgroundService
                 await repository.SaveChangesAsync(stoppingToken);
 
                 video.Probe = await _ffmpeg.ProbeAsync(video.SourceFilePath, stoppingToken);
+
+                // A failed fingerprint must not fail the video itself - it just stays null.
+                try
+                {
+                    video.PerceptualHash = await _fingerprint.ComputePerceptualHashAsync(
+                        video.SourceFilePath, video.Probe.DurationSeconds, stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Could not compute perceptual hash for video {VideoId}", videoId);
+                }
 
                 var mediaDir = Path.Combine(_env.ContentRootPath, "Storage", "media");
                 var renditions = await _ffmpeg.ConvertAllRenditionsAsync(

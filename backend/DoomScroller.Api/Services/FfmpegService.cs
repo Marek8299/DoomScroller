@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using DoomScroller.Api.Models;
+using DoomScroller.Api.Options;
+using Microsoft.Extensions.Options;
 
 namespace DoomScroller.Api.Services;
 
@@ -21,20 +23,11 @@ public class FfmpegService : IFfmpegService
     private static readonly SemaphoreSlim EncoderDetectionLock = new(1, 1);
     private static HashSet<string>? _availableEncoders;
 
-    public FfmpegService(ILogger<FfmpegService> logger, IConfiguration configuration)
+    public FfmpegService(ILogger<FfmpegService> logger, IOptions<FfmpegOptions> options)
     {
         _logger = logger;
-
-        // Ffmpeg:FfmpegPath / Ffmpeg:FfprobePath in appsettings.json (or the
-        // FFMPEG__FFMPEGPATH / FFMPEG__FFPROBEPATH env vars) let you point at a specific
-        // build - e.g. one compiled with `make ffmpeg-custom`, or a faster third-party
-        // build. Unset or blank just falls back to whatever "ffmpeg"/"ffprobe" resolve to
-        // on PATH.
-        var configuredFfmpeg = configuration["Ffmpeg:FfmpegPath"];
-        var configuredFfprobe = configuration["Ffmpeg:FfprobePath"];
-
-        _ffmpegPath = string.IsNullOrWhiteSpace(configuredFfmpeg) ? "ffmpeg" : configuredFfmpeg;
-        _ffprobePath = string.IsNullOrWhiteSpace(configuredFfprobe) ? "ffprobe" : configuredFfprobe;
+        _ffmpegPath = options.Value.ResolvedFfmpegPath;
+        _ffprobePath = options.Value.ResolvedFfprobePath;
 
         _logger.LogInformation("Using ffmpeg: {FfmpegPath}, ffprobe: {FfprobePath}", _ffmpegPath, _ffprobePath);
     }

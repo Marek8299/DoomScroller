@@ -37,6 +37,7 @@ export interface VideoProbeResult {
 export interface VideoItem {
   id: string;
   title: string;
+  description?: string;
   originalFileName: string;
   uploadedAtUtc: string;
   options: ConversionOptions;
@@ -44,16 +45,4 @@ export interface VideoItem {
   errorMessage?: string;
   probe?: VideoProbeResult;
   renditions: VideoRendition[];
-}
-
-export interface OptionChoice {
-  value: string;
-  label: string;
-}
-
-export interface UploadFormOptions {
-  appName: string;
-  presets: OptionChoice[];
-  containers: OptionChoice[];
-  resolutionPresets: OptionChoice[];
 }

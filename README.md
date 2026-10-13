@@ -122,6 +122,10 @@ backend/DoomScroller.Api/Migrations/
 └── MySql/   (InitialCreate.cs, .Designer.cs, MySqlDoomScrollerDbContextModelSnapshot.cs)
 ```
 
+SQLite note: its EF provider can't `ORDER BY` a `DateTimeOffset` column, so on SQLite only
+the upload timestamp is stored as UTC ticks in an `INTEGER` column (value converter in
+`SqliteDoomScrollerDbContext`); MySQL keeps a native `datetime(6)`.
+
 Since EF Core 9, `Migrate()` throws when the model doesn't match the last snapshot. Because
 the initial migrations are hand-written, `Program.cs` currently ignores that check
 (`PendingModelChangesWarning`) — remove the two `ConfigureWarnings(...)` calls after
@@ -147,38 +151,64 @@ dotnet ef migrations add SomeChange --context SqliteDoomScrollerDbContext --outp
 dotnet ef migrations add SomeChange --context MySqlDoomScrollerDbContext  --output-dir Migrations/MySql  --namespace DoomScroller.Api.Migrations.MySql
 ```
 
-## 6. How the configuration options work
+## 6. Encoding configuration (server admin only)
 
-Everything is submitted with the upload as multipart form fields and turned into an
-ffmpeg command per rendition by `FfmpegService.BuildFfmpegArgs` (see
-`backend/DoomScroller.Api/Services/FfmpegService.cs`):
+Uploaders only provide a **file, a name and an optional description**. *How* videos get
+encoded is the admin's call, in the `Conversion` section of `appsettings.json` (or env vars
+like `CONVERSION__PRESET=Conservative`). Each upload snapshots the settings in force at the
+time, so changing them later never rewrites already-processed videos. Invalid values (unknown
+preset, malformed resolution list) stop the app at startup rather than failing mid-encode.
 
-| Option | Values | Effect |
+```json
+"Conversion": {
+  "Preset": "WebOptimized",
+  "Container": "Mp4",
+  "ForceCopyAudioIfSupported": true,
+  "ResolutionTargets": "original"
+}
+```
+
+They're turned into an ffmpeg command per rendition by `FfmpegService.BuildFfmpegArgs`
+(`backend/DoomScroller.Api/Services/FfmpegService.cs`):
+
+| Setting | Values | Effect |
 |---|---|---|
-| **Encoding preset** | `LowestSize` | AV1 video (`libsvtav1`, CRF 35), AAC audio. Smallest files, slowest encode, needs a modern decoder. |
+| **Preset** | `LowestSize` | AV1 video (`libsvtav1`, CRF 35), AAC audio. Smallest files, slowest encode, needs a modern decoder. |
 | | `Conservative` | HEVC video. Uses `hevc_nvenc` (NVIDIA) or `hevc_amf` (AMD) if `ffmpeg -encoders` reports them at startup, else software `libx265` (CRF 26). |
 | | `WebOptimized` | H.264 (`libx264`, CRF 23, `veryfast`), AAC audio, `+faststart` on MP4 so playback can start before the file finishes downloading. |
 | **Container** | `Mp4` / `Mkv` | Sets the output extension and ffmpeg muxer (`mp4` / `matroska`). `+faststart` only applies to MP4. |
-| **Force copy audio** | on/off | When on *and* the source audio codec is `aac`, `mp3`, or `opus`, audio is stream-copied (`-c:a copy`) instead of re-encoded. **WMA is never copied** — it's always re-encoded to AAC regardless of this flag (`ConversionOptions.CanCopyAudioCodec`). When off, audio is always re-encoded to AAC. |
-| **Resolution targets** | `original` | One rendition at the source resolution. |
-| | `480,720,1080,2160` (or any custom comma list) | One rendition per listed height that is `<=` the source height (never upscales). Scaling uses `scale=-2:H` to preserve aspect ratio with an even width. |
+| **ForceCopyAudioIfSupported** | `true` / `false` | When on *and* the source audio codec is `aac`, `mp3`, or `opus`, audio is stream-copied (`-c:a copy`) instead of re-encoded. **WMA is never copied** — it's always re-encoded to AAC regardless (`ConversionOptions.CanCopyAudioCodec`). When off, audio is always re-encoded to AAC. |
+| **ResolutionTargets** | `"original"` | One rendition at the source resolution. |
+| | `"480,720,1080,2160"` (or any comma list) | One rendition per listed height that is `<=` the source height (never upscales). Scaling uses `scale=-2:H` to preserve aspect ratio with an even width. |
 
 The video is probed with `ffprobe` first (`FfmpegService.ProbeAsync`) to get the source
 width/height/codecs, which is what the resolution-target and audio-copy logic checks against.
 
 Uploads return immediately (`202 Accepted`) with `status: Queued`; a `BackgroundService`
 (`VideoProcessingWorker`) pulls jobs off an in-process channel and runs ffmpeg outside the
-HTTP request. The frontend polls `GET /api/videos/{id}` (feed polls `GET /api/videos` every
-8s) until renditions flip to `Ready`.
+HTTP request. The feed polls `GET /api/videos` every 8s until renditions flip to `Ready`.
+
+### Perceptual hash (for spotting duplicates later)
+
+While processing, the worker computes a perceptual hash of the **source** video
+(`PerceptualHash` + `VideoFingerprintService`), stored in `Videos.PerceptualHash`
+(server-side only, never returned by the API). It is 16 frames sampled at evenly spaced
+moments (the middle of 16 equal slices of the duration); each frame is squashed to 32x32
+grayscale, DCT-transformed, and the 8x8 lowest-frequency block is thresholded against its
+median, giving 64 bits per frame, written as 16 hex chars. 256 hex chars in total.
+
+Unlike a file hash it survives re-encoding, resizing and codec changes. Measured on a test
+clip: a re-encoded, half-size HEVC copy differed from the original by 4 of 1024 bits, an
+unrelated video by 492. Comparing two videos is the Hamming distance (popcount of the XOR)
+summed over the 16 frame hashes. **No duplicate detection is done yet** - the hash is only
+recorded. Hashing failures are logged and leave the column null without failing the video.
 
 ## 7. API surface
 
-- `POST /api/videos` — multipart upload: `file`, `title`, `preset`, `container`,
-  `forceCopyAudioIfSupported`, `resolutionTargets`.
+- `POST /api/videos` — multipart upload: `file`, `title` (max 200, defaults to the file
+  name), `description` (optional, max 2000).
 - `GET /api/videos?skip=&take=` — feed of ready videos, newest first.
 - `GET /api/videos/{id}` — single video + rendition status (for polling).
-- `GET /api/config/options` — preset/container/resolution choices, so the Angular form is
-  driven by the backend instead of a second hard-coded copy.
 - `GET /media/{renditionId}.{ext}` — static file serving of a transcoded rendition.
 
 ## 8. Known corners cut for "small clone" scope

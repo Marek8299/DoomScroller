@@ -1,4 +1,6 @@
 using DoomScroller.Api.Data;
+using DoomScroller.Api.Models;
+using DoomScroller.Api.Options;
 using DoomScroller.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -6,7 +8,12 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        // Enums go over the wire as names ("WebOptimized", "Mp4"), not numbers.
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 builder.Services.AddOpenApi();
 
@@ -60,6 +67,18 @@ switch (dbProvider)
 builder.Services.AddScoped<IVideoRepository, EfVideoRepository>();
 builder.Services.AddSingleton<IVideoProcessingQueue, VideoProcessingQueue>();
 builder.Services.AddSingleton<IFfmpegService, FfmpegService>();
+builder.Services.AddSingleton<IVideoFingerprintService, VideoFingerprintService>();
+
+// --- Server-side configuration (appsettings.json / env vars) ---
+builder.Services.Configure<FfmpegOptions>(builder.Configuration.GetSection("Ffmpeg"));
+
+// How uploads get encoded is an admin decision, not a user one: the "Conversion" section.
+// Invalid values (unknown preset, malformed resolution list) stop the app at startup.
+builder.Services.AddOptions<ConversionOptions>()
+    .Bind(builder.Configuration.GetSection("Conversion"))
+    .Validate(o => o.IsResolutionTargetsValid(),
+        "Conversion:ResolutionTargets must be \"original\" or a comma-separated list of heights, e.g. \"480,720,1080\".")
+    .ValidateOnStart();
 builder.Services.AddHostedService<VideoProcessingWorker>();
 
 var app = builder.Build();

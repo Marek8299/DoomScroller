@@ -34,6 +34,8 @@ public abstract class DoomScrollerDbContext : DbContext
             video.Property(v => v.Title).HasMaxLength(200);
             video.Property(v => v.OriginalFileName).HasMaxLength(260).IsRequired();
             video.Property(v => v.SourceFilePath).HasMaxLength(1024).IsRequired();
+            video.Property(v => v.Description).HasMaxLength(UploadVideoRequest.MaxDescriptionLength);
+            video.Property(v => v.PerceptualHash).HasMaxLength(256);
             video.Property(v => v.Status).HasConversion<string>().HasMaxLength(20);
             video.Property(v => v.ErrorMessage).HasMaxLength(2000);
 
