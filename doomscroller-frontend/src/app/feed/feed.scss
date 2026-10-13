@@ -11,6 +11,9 @@
 
 .feed-item {
   position: relative;
+  width: 100%;
+  max-width: 480px; // phone-shaped column: video, caption and controls all line up inside it
+  margin: 0 auto;
   height: 100dvh;
   scroll-snap-align: start;
   display: flex;
@@ -19,23 +22,15 @@
   background: #000;
 }
 
-.feed-video {
-  height: 100%;
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
-  object-fit: contain;
-  background: #000;
-}
-
 .overlay {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 16px 20px 28px;
+  padding: 16px 68px 36px 20px; // right padding keeps text clear of the mute button, bottom clears the seek bar
   background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
   color: #fff;
+  pointer-events: none; // taps fall through to the video underneath
 
   h3 {
     margin: 0 0 4px;
@@ -98,6 +93,7 @@
 }
 
 .author {
+  pointer-events: auto; // ...except the author link
   display: inline-block;
   margin-bottom: 4px;
   color: #fff;

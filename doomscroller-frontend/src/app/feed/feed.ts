@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, catchError, of, switchMap, tap, timer } from 'rxjs';
 import { VideoService } from '../core/services/video.service';
 import { VideoItem } from '../core/models/video.model';
-import { AutoPlayInView } from './auto-play-in-view';
+import { VideoPlayer } from './video-player';
 
 /**
  * The scrolling video feed. At "/" it shows everyone's videos; at "/u/:username" the same
@@ -12,7 +12,7 @@ import { AutoPlayInView } from './auto-play-in-view';
  */
 @Component({
   selector: 'app-feed',
-  imports: [RouterLink, AutoPlayInView],
+  imports: [RouterLink, VideoPlayer],
   templateUrl: './feed.html',
   styleUrl: './feed.scss'
 })

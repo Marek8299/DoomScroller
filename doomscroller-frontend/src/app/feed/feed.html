@@ -25,7 +25,7 @@
     @for (item of items(); track item.video.id) {
       <section class="feed-item">
         @if (item.src; as src) {
-          <video appAutoPlayInView [src]="src" class="feed-video" playsinline loop muted controls preload="metadata"></video>
+          <app-video-player [src]="src" />
         } @else {
           <!-- Only ever shown to the author, for their own queued/processing/failed uploads. -->
           <div class="pending">

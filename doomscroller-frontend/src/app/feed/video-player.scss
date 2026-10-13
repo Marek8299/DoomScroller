@@ -1,0 +1,96 @@
+:host {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: #000;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.play-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  fill: #fff;
+  opacity: 0.8;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+
+// Right edge, above the caption: where a thumb rests, and clear of the seek bar.
+.mute {
+  position: absolute;
+  right: 12px;
+  bottom: 96px;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+    stroke: #fff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+// A 28px-tall hit area (easy to grab with a thumb) around a thin visible track.
+.seek {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 28px;
+  display: flex;
+  align-items: flex-end;
+  cursor: pointer;
+  touch-action: none; // dragging along the bar must not scroll the feed
+  outline: none;
+
+  &:focus-visible .seek-track {
+    outline: 2px solid #fff;
+  }
+}
+
+.seek-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  transition: height 0.12s ease;
+}
+
+.seek-fill {
+  height: 100%;
+  background: #fff;
+  transition: width 0.25s linear; // smooths the ~4Hz timeupdate ticks
+}
+
+.seek:hover .seek-track,
+.seek.scrubbing .seek-track {
+  height: 8px;
+}
+
+.seek.scrubbing .seek-fill {
+  transition: none; // follow the finger exactly while dragging
+}
