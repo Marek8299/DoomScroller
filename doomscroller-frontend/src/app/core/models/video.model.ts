@@ -38,6 +38,7 @@ export interface VideoItem {
   id: string;
   title: string;
   description?: string;
+  normalizeVolume: boolean;
   originalFileName: string;
   uploadedAtUtc: string;
   options: ConversionOptions;

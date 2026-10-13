@@ -188,6 +188,17 @@ Uploads return immediately (`202 Accepted`) with `status: Queued`; a `Background
 (`VideoProcessingWorker`) pulls jobs off an in-process channel and runs ffmpeg outside the
 HTTP request. The feed polls `GET /api/videos` every 8s until renditions flip to `Ready`.
 
+### Volume normalisation (uploader's choice)
+
+Unlike the settings above, loudness is an artistic decision, so it's a checkbox on the upload
+form (`normalizeVolume`) rather than server config. When ticked, audio is normalised to
+**-16 LUFS** (true peak -1.5 dB) with ffmpeg's `loudnorm` filter in two passes: one analysis pass
+over the source audio (once per video), then every rendition applies the same measured linear
+gain, so quiet clips get louder without being compressed. Because the audio is filtered it is
+always re-encoded to AAC (at 48 kHz), even if `ForceCopyAudioIfSupported` is on. Videos without
+an audio track are left alone. Tested on a clip at -59.8 LUFS, which came out at -16.0 LUFS.
+Targets are constants in `Services/LoudnessNormalization.cs`.
+
 ### Perceptual hash (for spotting duplicates later)
 
 While processing, the worker computes a perceptual hash of the **source** video
@@ -206,7 +217,7 @@ recorded. Hashing failures are logged and leave the column null without failing 
 ## 7. API surface
 
 - `POST /api/videos` — multipart upload: `file`, `title` (max 200, defaults to the file
-  name), `description` (optional, max 2000).
+  name), `description` (optional, max 2000), `normalizeVolume` (optional bool, default false).
 - `GET /api/videos?skip=&take=` — feed of ready videos, newest first.
 - `GET /api/videos/{id}` — single video + rendition status (for polling).
 - `GET /media/{renditionId}.{ext}` — static file serving of a transcoded rendition.

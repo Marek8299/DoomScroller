@@ -23,7 +23,8 @@ export class Upload {
   // Limits mirror UploadVideoRequest on the backend.
   protected readonly form = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(200)]],
-    description: ['', Validators.maxLength(2000)]
+    description: ['', Validators.maxLength(2000)],
+    normalizeVolume: [false]
   });
 
   protected onFileSelected(event: Event): void {
@@ -42,9 +43,9 @@ export class Upload {
     this.errorMessage.set(undefined);
     this.progressPercent.set(0);
 
-    const { title, description } = this.form.getRawValue();
+    const { title, description, normalizeVolume } = this.form.getRawValue();
 
-    this.videoService.upload(file, title, description).subscribe({
+    this.videoService.upload(file, title, description, normalizeVolume).subscribe({
       next: (progress) => {
         this.progressPercent.set(progress.progressPercent);
         if (progress.done && progress.video) {

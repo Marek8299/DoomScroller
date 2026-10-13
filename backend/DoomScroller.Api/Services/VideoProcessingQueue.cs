@@ -86,6 +86,7 @@ public class VideoProcessingWorker : BackgroundService
                     video.Probe,
                     video.Options,
                     mediaDir,
+                    video.NormalizeVolume,
                     ct: stoppingToken);
 
                 video.Renditions.AddRange(renditions);

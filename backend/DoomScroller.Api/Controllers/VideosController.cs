@@ -76,6 +76,7 @@ public class VideosController : ControllerBase
         {
             Title = title,
             Description = description,
+            NormalizeVolume = request.NormalizeVolume,
             OriginalFileName = file.FileName,
             SourceFilePath = Path.Combine(uploadsDir, $"{Guid.NewGuid()}{extension}"),
             // Snapshot of the server config at upload time, so a later config change doesn't

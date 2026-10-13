@@ -34,6 +34,9 @@ namespace DoomScroller.Api.Migrations.MySql
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
+                    b.Property<bool>("NormalizeVolume")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(260)

@@ -110,3 +110,15 @@ button[type='submit'] {
     cursor: pointer;
   }
 }
+
+.checkbox {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+
+  small {
+    display: block;
+    margin-top: 2px;
+    color: #777;
+  }
+}

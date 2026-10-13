@@ -31,6 +31,9 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("NormalizeVolume")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(260)

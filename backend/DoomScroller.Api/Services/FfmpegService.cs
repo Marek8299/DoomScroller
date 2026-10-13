@@ -93,6 +93,7 @@ public class FfmpegService : IFfmpegService
         VideoProbeResult sourceProbe,
         ConversionOptions options,
         string outputDirectory,
+        bool normalizeVolume,
         Func<VideoRendition, Task>? onRenditionStarted = null,
         Func<VideoRendition, Task>? onRenditionFinished = null,
         CancellationToken ct = default)
@@ -101,7 +102,19 @@ public class FfmpegService : IFfmpegService
 
         var availableEncoders = await DetectAvailableEncodersAsync(ct);
         var heights = options.ResolveResolutionHeights(sourceProbe.Height);
-        var copyAudio = options.ForceCopyAudioIfSupported && ConversionOptions.CanCopyAudioCodec(sourceProbe.AudioCodec);
+        // Normalising means filtering the audio, which rules out stream copy.
+        var hasAudio = !string.IsNullOrWhiteSpace(sourceProbe.AudioCodec);
+        var normalize = normalizeVolume && hasAudio;
+        var copyAudio = !normalize && options.ForceCopyAudioIfSupported && ConversionOptions.CanCopyAudioCodec(sourceProbe.AudioCodec);
+
+        // Measure once per video; every rendition then applies the same gain.
+        string? audioFilter = null;
+        if (normalize)
+        {
+            var measurement = await MeasureLoudnessAsync(sourceFilePath, ct);
+            audioFilter = LoudnessNormalization.BuildFilter(measurement);
+            _logger.LogInformation("Normalising volume with {Filter}", audioFilter);
+        }
 
         var renditions = new List<VideoRendition>();
 
@@ -112,7 +125,7 @@ public class FfmpegService : IFfmpegService
                 Height = height,
                 IsOriginalResolution = height == sourceProbe.Height,
                 Container = options.Container,
-                AudioCodec = copyAudio ? sourceProbe.AudioCodec! : "aac",
+                AudioCodec = copyAudio ? sourceProbe.AudioCodec! : hasAudio ? "aac" : string.Empty,
                 AudioWasCopied = copyAudio,
                 Status = RenditionStatus.Processing
             };
@@ -136,7 +149,8 @@ public class FfmpegService : IFfmpegService
                     options,
                     sourceProbe,
                     videoCodecArgName,
-                    copyAudio);
+                    copyAudio,
+                    audioFilter);
 
                 _logger.LogInformation("ffmpeg {Args}", string.Join(' ', args));
 
@@ -181,7 +195,8 @@ public class FfmpegService : IFfmpegService
         ConversionOptions options,
         VideoProbeResult sourceProbe,
         string videoEncoder,
-        bool copyAudio)
+        bool copyAudio,
+        string? audioFilter)
     {
         var args = new List<string> { "-y", "-i", sourceFilePath };
 
@@ -226,6 +241,13 @@ public class FfmpegService : IFfmpegService
         }
         else
         {
+            if (audioFilter is not null)
+            {
+                // loudnorm resamples internally to 192 kHz, which the AAC encoder can't take,
+                // so pin the output rate.
+                args.AddRange(new[] { "-af", audioFilter, "-ar", "48000" });
+            }
+
             args.AddRange(new[] { "-c:a", "aac", "-b:a", "160k" });
         }
 
@@ -260,6 +282,29 @@ public class FfmpegService : IFfmpegService
 
             _ => throw new ArgumentOutOfRangeException(nameof(preset))
         };
+    }
+
+    /// <summary>Analysis pass of the two-pass loudness normalisation; null if it fails or the audio is silent.</summary>
+    private async Task<LoudnessMeasurement?> MeasureLoudnessAsync(string sourceFilePath, CancellationToken ct)
+    {
+        var args = new List<string>
+        {
+            "-hide_banner", "-nostats",
+            "-i", sourceFilePath,
+            "-vn",
+            "-af", LoudnessNormalization.MeasureFilter,
+            "-f", "null", "-"
+        };
+
+        var (exitCode, _, stderr) = await RunProcessAsync(_ffmpegPath, args, ct);
+        if (exitCode != 0)
+        {
+            _logger.LogWarning("Loudness analysis failed ({ExitCode}); falling back to single-pass normalisation: {Stderr}",
+                exitCode, TailOf(stderr, 500));
+            return null;
+        }
+
+        return LoudnessNormalization.ParseMeasurement(stderr);
     }
 
     /// <summary>Runs `ffmpeg -encoders` once and caches which hardware encoders are actually built in.</summary>

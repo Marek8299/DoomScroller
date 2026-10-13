@@ -24,11 +24,12 @@ export class VideoService {
   }
 
   /** Uploads with progress events so the UI can show a real progress bar for large files. */
-  upload(file: File, title: string, description: string): Observable<UploadProgress> {
+  upload(file: File, title: string, description: string, normalizeVolume: boolean): Observable<UploadProgress> {
     const formData = new FormData();
     formData.append('file', file, file.name);
     formData.append('title', title);
     formData.append('description', description);
+    formData.append('normalizeVolume', String(normalizeVolume));
 
     const req = new HttpRequest('POST', `${this.base}/videos`, formData, { reportProgress: true });
 

@@ -8,6 +8,9 @@ public class VideoItem
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+
+    /// <summary>Uploader's choice: loudness-normalise the audio (for videos that are too quiet/loud).</summary>
+    public bool NormalizeVolume { get; set; }
     public string OriginalFileName { get; init; } = string.Empty;
     public DateTimeOffset UploadedAtUtc { get; init; } = DateTimeOffset.UtcNow;
     public ConversionOptions Options { get; init; } = new();

@@ -28,6 +28,14 @@
         <textarea formControlName="description" rows="4" maxlength="2000" placeholder="Say something about it"></textarea>
       </label>
 
+      <label class="checkbox">
+        <input type="checkbox" formControlName="normalizeVolume" />
+        <span>
+          Normalize volume
+          <small>Evens out loudness to a standard level. Handy if your video is too quiet.</small>
+        </span>
+      </label>
+
       <button type="submit" [disabled]="!selectedFile() || uploading() || form.invalid">
         {{ uploading() ? 'Uploading… ' + progressPercent() + '%' : 'Upload' }}
       </button>
