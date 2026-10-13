@@ -1,0 +1,70 @@
+.auth-page {
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 96px 20px 20px;
+  color: #fff;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 20px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: #ddd;
+
+  input {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px;
+    color: #fff;
+    font: inherit;
+  }
+
+  small {
+    color: #777;
+  }
+}
+
+button[type='submit'] {
+  background: #fe2c55;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+}
+
+.status.error {
+  color: #fe2c55;
+  margin-bottom: 12px;
+}
+
+.switch {
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: #999;
+
+  a {
+    color: #fe2c55;
+    text-decoration: none;
+  }
+}

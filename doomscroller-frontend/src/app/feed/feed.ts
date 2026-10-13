@@ -1,20 +1,27 @@
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { interval, switchMap } from 'rxjs';
+import { EMPTY, Observable, catchError, of, switchMap, tap, timer } from 'rxjs';
 import { VideoService } from '../core/services/video.service';
 import { VideoItem } from '../core/models/video.model';
 import { AutoPlayInView } from './auto-play-in-view';
 
+/**
+ * The scrolling video feed. At "/" it shows everyone's videos; at "/u/:username" the same
+ * component shows one author's videos (the router binds :username to the `username` input).
+ */
 @Component({
   selector: 'app-feed',
   imports: [RouterLink, AutoPlayInView],
   templateUrl: './feed.html',
   styleUrl: './feed.scss'
 })
-export class Feed implements OnInit {
+export class Feed {
   private readonly videoService = inject(VideoService);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Set on author pages, undefined on the home feed. */
+  readonly username = input<string>();
 
   protected readonly videos = signal<VideoItem[]>([]);
   protected readonly loading = signal(true);
@@ -25,32 +32,52 @@ export class Feed implements OnInit {
     this.videos().map((video) => ({ video, src: this.bestRenditionUrl(video) }))
   );
 
-  ngOnInit(): void {
-    this.loadFeed();
+  /** Header info for author pages (null on the home feed or if the user doesn't exist). */
+  protected readonly profile = toSignal(
+    toObservable(this.username).pipe(
+      switchMap((name) => (name ? this.videoService.getProfile(name).pipe(catchError(() => of(null))) : of(null)))
+    ),
+    { initialValue: null }
+  );
 
-    // Cheap poll so freshly-uploaded videos appear once transcoding finishes,
-    // without wiring up SignalR for a small demo app.
-    interval(8000)
+  constructor() {
+    // One pipeline for: first load, 8s polling (so new uploads appear once processed), and
+    // switching between feeds. switchMap cancels the old feed's requests when the page changes.
+    toObservable(this.username)
       .pipe(
-        switchMap(() => this.videoService.getFeed(0, 20)),
+        tap(() => {
+          this.loading.set(true);
+          this.error.set(undefined);
+          this.videos.set([]);
+        }),
+        switchMap((name) =>
+          timer(0, 8000).pipe(
+            switchMap(() =>
+              this.fetch(name).pipe(
+                catchError((err) => {
+                  this.error.set(
+                    err?.status === 404
+                      ? 'No such user.'
+                      : 'Could not reach the DoomScroller API. Is the backend running?'
+                  );
+                  this.loading.set(false);
+                  console.error(err);
+                  return EMPTY;
+                })
+              )
+            )
+          )
+        ),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe({ next: (videos) => this.videos.set(videos) });
-  }
-
-  private loadFeed(): void {
-    this.loading.set(true);
-    this.videoService.getFeed(0, 20).subscribe({
-      next: (videos) => {
+      .subscribe((videos) => {
         this.videos.set(videos);
         this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set('Could not reach the DoomScroller API. Is the backend running?');
-        this.loading.set(false);
-        console.error(err);
-      }
-    });
+      });
+  }
+
+  private fetch(username: string | undefined): Observable<VideoItem[]> {
+    return username ? this.videoService.getUserVideos(username, 0, 20) : this.videoService.getFeed(0, 20);
   }
 
   /** Picks the smallest ready rendition >= 720p if one exists, else the best available. */

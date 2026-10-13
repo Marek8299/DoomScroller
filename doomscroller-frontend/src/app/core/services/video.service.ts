@@ -2,7 +2,7 @@ import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { VideoItem } from '../models/video.model';
+import { UserProfile, VideoItem } from '../models/video.model';
 
 export interface UploadProgress {
   progressPercent: number;
@@ -17,6 +17,17 @@ export class VideoService {
 
   getFeed(skip = 0, take = 10): Observable<VideoItem[]> {
     return this.http.get<VideoItem[]>(`${this.base}/videos`, { params: { skip, take } });
+  }
+
+  getProfile(username: string): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.base}/users/${encodeURIComponent(username)}`);
+  }
+
+  /** One author's videos. Their own unfinished uploads are included when it's the signed-in author asking. */
+  getUserVideos(username: string, skip = 0, take = 10): Observable<VideoItem[]> {
+    return this.http.get<VideoItem[]>(`${this.base}/users/${encodeURIComponent(username)}/videos`, {
+      params: { skip, take }
+    });
   }
 
   getById(id: string): Observable<VideoItem> {

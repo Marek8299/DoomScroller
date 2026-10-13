@@ -1,3 +1,4 @@
+using DoomScroller.Api.Auth;
 using DoomScroller.Api.Data;
 using DoomScroller.Api.Models;
 using DoomScroller.Api.Options;
@@ -25,7 +26,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials(); // the auth cookie must be allowed on cross-origin calls from the dev server
     });
 });
 
@@ -65,6 +67,8 @@ switch (dbProvider)
 }
 
 builder.Services.AddScoped<IVideoRepository, EfVideoRepository>();
+builder.Services.AddScoped<IUserRepository, EfUserRepository>();
+builder.Services.AddDoomScrollerAuth();
 builder.Services.AddSingleton<IVideoProcessingQueue, VideoProcessingQueue>();
 builder.Services.AddSingleton<IFfmpegService, FfmpegService>();
 builder.Services.AddSingleton<IVideoFingerprintService, VideoFingerprintService>();
@@ -111,6 +115,10 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(mediaDir),
     RequestPath = "/media"
 });
+
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

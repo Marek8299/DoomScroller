@@ -1,13 +1,24 @@
+@if (profile(); as p) {
+  <div class="profile-banner">
+    <strong>&#64;{{ p.username }}</strong>
+    <span>{{ p.videoCount }} {{ p.videoCount === 1 ? 'video' : 'videos' }}</span>
+  </div>
+}
+
 @if (loading()) {
-  <div class="status">Loading feed…</div>
+  <div class="status">Loading…</div>
 } @else if (error(); as message) {
   <div class="status error">{{ message }}</div>
 } @else {
   <div class="feed">
     @if (items().length === 0) {
       <div class="empty-state">
-        <p>No videos yet.</p>
-        <a routerLink="/upload" class="cta">Upload the first one</a>
+        @if (username(); as name) {
+          <p>&#64;{{ name }} hasn't posted anything yet.</p>
+        } @else {
+          <p>No videos yet.</p>
+          <a routerLink="/upload" class="cta">Upload the first one</a>
+        }
       </div>
     }
 
@@ -15,9 +26,20 @@
       <section class="feed-item">
         @if (item.src; as src) {
           <video appAutoPlayInView [src]="src" class="feed-video" playsinline loop muted controls preload="metadata"></video>
+        } @else {
+          <!-- Only ever shown to the author, for their own queued/processing/failed uploads. -->
+          <div class="pending">
+            {{ item.video.status === 'Failed' ? 'Processing failed' : 'Still processing…' }}
+            @if (item.video.errorMessage; as reason) {
+              <small>{{ reason }}</small>
+            }
+          </div>
         }
 
         <div class="overlay">
+          @if (item.video.author; as author) {
+            <a class="author" [routerLink]="['/u', author.username]">&#64;{{ author.username }}</a>
+          }
           <h3>{{ item.video.title }}</h3>
           @if (item.video.description; as description) {
             <p class="meta">{{ description }}</p>

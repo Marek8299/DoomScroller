@@ -78,3 +78,41 @@
     color: #fe2c55;
   }
 }
+
+.profile-banner {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+
+  span {
+    opacity: 0.75;
+  }
+}
+
+.author {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #aaa;
+
+  small {
+    color: #fe2c55;
+  }
+}

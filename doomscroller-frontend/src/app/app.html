@@ -1,6 +1,16 @@
 <header class="top-bar">
   <a routerLink="/" class="brand">{{ appName }}</a>
-  <a routerLink="/upload" class="upload-link">Upload</a>
+
+  <nav>
+    @if (auth.user(); as user) {
+      <a routerLink="/upload" class="pill">Upload</a>
+      <a [routerLink]="['/u', user.username]" class="link">&#64;{{ user.username }}</a>
+      <button type="button" class="link" (click)="logout()">Log out</button>
+    } @else {
+      <a routerLink="/login" class="link">Log in</a>
+      <a routerLink="/register" class="pill">Sign up</a>
+    }
+  </nav>
 </header>
 
 <main>

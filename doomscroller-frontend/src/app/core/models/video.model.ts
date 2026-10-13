@@ -1,14 +1,5 @@
-export type EncodingPreset = 'LowestSize' | 'Conservative' | 'WebOptimized';
 export type ContainerFormat = 'Mp4' | 'Mkv';
 export type RenditionStatus = 'Queued' | 'Processing' | 'Ready' | 'Failed';
-
-export interface ConversionOptions {
-  preset: EncodingPreset;
-  container: ContainerFormat;
-  forceCopyAudioIfSupported: boolean;
-  /** "original" or a comma-separated list like "480,720,1080,2160" */
-  resolutionTargets: string;
-}
 
 export interface VideoRendition {
   id: string;
@@ -17,33 +8,37 @@ export interface VideoRendition {
   container: ContainerFormat;
   videoCodec: string;
   audioCodec: string;
-  audioWasCopied: boolean;
-  usedHardwareEncoder: boolean;
-  fileName: string;
   sizeBytes: number;
   status: RenditionStatus;
-  errorMessage?: string;
   url: string;
 }
 
-export interface VideoProbeResult {
+export interface VideoProbe {
   width: number;
   height: number;
   durationSeconds: number;
-  videoCodec?: string;
-  audioCodec?: string;
+}
+
+export interface Author {
+  username: string;
 }
 
 export interface VideoItem {
   id: string;
   title: string;
   description?: string;
-  normalizeVolume: boolean;
-  originalFileName: string;
   uploadedAtUtc: string;
-  options: ConversionOptions;
   status: RenditionStatus;
+  /** Only present for the author's own videos. */
   errorMessage?: string;
-  probe?: VideoProbeResult;
+  probe?: VideoProbe;
+  /** Missing for videos uploaded before accounts existed. */
+  author?: Author;
   renditions: VideoRendition[];
+}
+
+export interface UserProfile {
+  username: string;
+  createdAtUtc: string;
+  videoCount: number;
 }

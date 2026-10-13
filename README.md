@@ -216,15 +216,58 @@ recorded. Hashing failures are logged and leave the column null without failing 
 
 ## 7. API surface
 
-- `POST /api/videos` — multipart upload: `file`, `title` (max 200, defaults to the file
-  name), `description` (optional, max 2000), `normalizeVolume` (optional bool, default false).
-- `GET /api/videos?skip=&take=` — feed of ready videos, newest first.
-- `GET /api/videos/{id}` — single video + rendition status (for polling).
-- `GET /media/{renditionId}.{ext}` — static file serving of a transcoded rendition.
+Auth (cookie session, see section 8):
+- `POST /api/auth/register` `{username, password}` — creates the account and signs in.
+- `POST /api/auth/login` `{username, password}` — signs in. `POST /api/auth/logout`.
+- `GET /api/auth/me` — the signed-in user, or 401. The SPA calls it on startup.
 
-## 8. Known corners cut for "small clone" scope
+Videos:
+- `POST /api/videos` — **requires sign-in.** Multipart upload: `file`, `title` (max 200, defaults
+  to the file name), `description` (optional, max 2000), `normalizeVolume` (optional bool).
+- `GET /api/videos?skip=&take=` — feed of ready videos from everyone, newest first.
+- `GET /api/videos/{id}` — one video. Unfinished videos are only visible to their author (404 for
+  everyone else).
 
-- No auth/accounts, no likes/comments, no thumbnails — the feed just autoplays each
-  rendition's `<video>` tag.
+Authors:
+- `GET /api/users/{username}` — `{username, createdAtUtc, videoCount}`.
+- `GET /api/users/{username}/videos?skip=&take=` — that author's videos, newest first. Visitors
+  see finished videos; the author also sees their own queued/processing/failed uploads.
+
+`GET /media/{renditionId}.{ext}` — static file serving of a transcoded rendition.
+
+Responses are DTOs (`Contracts/`), never entities, so nothing like a password hash or a server
+file path can leak.
+
+## 8. Accounts and authentication
+
+- **Who can do what**: anyone can watch and browse author pages; **only signed-in users can upload**.
+  Registration is open (username + password). Each video records its author, shown on the feed as
+  `@username` linking to `/u/username`, which is the same scrolling feed filtered to that author.
+- **Sessions**: ASP.NET Core cookie authentication (no extra packages). The cookie is `HttpOnly`
+  (JavaScript can't read it, unlike a token in localStorage) and `SameSite=Lax` (other sites can't
+  make the browser send it on cross-site POSTs, which is the CSRF defence here). The API answers
+  401/403 instead of redirecting. Cross-origin dev setups work because CORS allows credentials for
+  `http://localhost:4200` and the Angular app sends the cookie to the API (`credentialsInterceptor`).
+  Use `localhost` consistently (not `127.0.0.1` in one place) or the browser will treat them as
+  different sites.
+- **Production**: serve over HTTPS. The cookie is marked `Secure` whenever the request arrived over
+  HTTPS; behind a TLS-terminating proxy, forward the original scheme (`UseForwardedHeaders`) so the
+  app can tell. If the frontend and API end up on different *sites*, `SameSite` would need to
+  change and you'd want real CSRF tokens.
+- **Passwords**: hashed with ASP.NET's `PasswordHasher` (PBKDF2, per-user salt), upgraded
+  transparently on login when defaults get stronger. 8-128 characters. Usernames are 3-30 letters,
+  digits or underscores, unique case-insensitively (`Marek` and `marek` are the same account).
+  Rules live in `Auth/CredentialRules.cs`.
+- **Abuse limits**: login and register share a per-IP limit of 10 requests/minute (429 beyond
+  that). Wrong password and unknown user return the same error after the same amount of work, so
+  usernames can't be probed.
+- **Existing videos** uploaded before accounts existed have no author (`AuthorId` is nullable);
+  they still show in the feed, just without an `@name`.
+- **Not built yet**: email / password reset, account deletion, roles or moderation, invite-only
+  registration. Say if you want any of them.
+
+## 9. Known corners cut for "small clone" scope
+
+- No likes/comments or thumbnails — the feed just autoplays each rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;
   fine for a demo, not for real scale.

@@ -17,10 +17,45 @@ namespace DoomScroller.Api.Migrations.Sqlite
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
 
+            modelBuilder.Entity("DoomScroller.Api.Models.AppUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedNever()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NormalizedUsername")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedUsername")
+                        .IsUnique();
+
+                    b.ToTable("Users");
+                });
+
             modelBuilder.Entity("DoomScroller.Api.Models.VideoItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedNever()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AuthorId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
@@ -61,6 +96,8 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
 
                     b.HasIndex("Status");
 
@@ -128,6 +165,11 @@ namespace DoomScroller.Api.Migrations.Sqlite
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoItem", b =>
                 {
+                    b.HasOne("DoomScroller.Api.Models.AppUser", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("DoomScroller.Api.Models.ConversionOptions", "Options", b1 =>
                         {
                             b1.Property<Guid>("VideoItemId")
@@ -197,6 +239,8 @@ namespace DoomScroller.Api.Migrations.Sqlite
                             b1.WithOwner()
                                 .HasForeignKey("VideoItemId");
                         });
+
+                    b.Navigation("Author");
 
                     b.Navigation("Options")
                         .IsRequired();

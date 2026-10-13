@@ -1,5 +1,8 @@
+using DoomScroller.Api.Auth;
+using DoomScroller.Api.Contracts;
 using DoomScroller.Api.Models;
 using DoomScroller.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -40,8 +43,9 @@ public class VideosController : ControllerBase
     /// server-configured "Conversion" settings.
     /// </summary>
     [HttpPost]
+    [Authorize]
     [RequestSizeLimit(2_000_000_000)] // 2 GB - raise/lower to taste, also set Kestrel limits for real deployments
-    public async Task<ActionResult<VideoItem>> Upload([FromForm] UploadVideoRequest request)
+    public async Task<ActionResult<VideoDto>> Upload([FromForm] UploadVideoRequest request)
     {
         var file = request.File;
         if (file is null || file.Length == 0)
@@ -76,6 +80,7 @@ public class VideosController : ControllerBase
         {
             Title = title,
             Description = description,
+            AuthorId = User.GetUserId(),
             NormalizeVolume = request.NormalizeVolume,
             OriginalFileName = file.FileName,
             SourceFilePath = Path.Combine(uploadsDir, $"{Guid.NewGuid()}{extension}"),
@@ -94,22 +99,39 @@ public class VideosController : ControllerBase
 
         _logger.LogInformation("Queued video {VideoId} ({FileName}, {Bytes} bytes)", video.Id, file.FileName, file.Length);
 
-        return AcceptedAtAction(nameof(GetById), new { id = video.Id }, video);
+        // The new entity has no Author navigation loaded; the signed-in user's name is in their claims.
+        var dto = VideoMapper.ToDto(video, video.AuthorId) with { Author = new AuthorDto(User.Identity!.Name!) };
+        return AcceptedAtAction(nameof(GetById), new { id = video.Id }, dto);
     }
 
     /// <summary>The scrollable feed: most recently uploaded, fully-processed videos first.</summary>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<VideoItem>>> GetFeed([FromQuery] int skip = 0, [FromQuery] int take = 10)
+    public async Task<ActionResult<IReadOnlyList<VideoDto>>> GetFeed(
+        [FromQuery] int skip = 0, [FromQuery] int take = 10, CancellationToken ct = default)
     {
         take = Math.Clamp(take, 1, 50);
-        return Ok(await _repository.GetFeedAsync(skip, take));
+        skip = Math.Max(skip, 0);
+
+        var viewerId = User.GetUserId();
+        var videos = await _repository.GetFeedAsync(skip, take, ct);
+        return Ok(videos.Select(v => VideoMapper.ToDto(v, viewerId)).ToList());
     }
 
-    /// <summary>Poll this while a video is Queued/Processing to find out when it's Ready.</summary>
+    /// <summary>
+    /// Poll this while a video is Queued/Processing to find out when it's Ready. Unfinished videos
+    /// are only visible to their author; everyone else gets a 404.
+    /// </summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<VideoItem>> GetById(Guid id)
+    public async Task<ActionResult<VideoDto>> GetById(Guid id, CancellationToken ct)
     {
-        var video = await _repository.GetAsync(id);
-        return video is null ? NotFound() : Ok(video);
+        var video = await _repository.GetAsync(id, ct);
+        var viewerId = User.GetUserId();
+
+        if (video is null || (video.Status != RenditionStatus.Ready && video.AuthorId != viewerId))
+        {
+            return NotFound();
+        }
+
+        return Ok(VideoMapper.ToDto(video, viewerId));
     }
 }

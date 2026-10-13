@@ -6,6 +6,12 @@ namespace DoomScroller.Api.Models;
 public class VideoItem
 {
     public Guid Id { get; init; } = Guid.NewGuid();
+    /// <summary>Null only for videos uploaded before accounts existed.</summary>
+    public Guid? AuthorId { get; set; }
+
+    [JsonIgnore]
+    public AppUser? Author { get; set; }
+
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
 

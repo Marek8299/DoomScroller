@@ -19,7 +19,13 @@
   letter-spacing: 0.02em;
 }
 
-.upload-link {
+nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pill {
   color: #fe2c55;
   font-weight: 600;
   text-decoration: none;
@@ -27,6 +33,22 @@
   border-radius: 20px;
   padding: 6px 14px;
   font-size: 0.85rem;
+}
+
+.link {
+  color: #fff;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+  }
 }
 
 main {

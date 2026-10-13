@@ -18,11 +18,26 @@ public abstract class DoomScrollerDbContext : DbContext
     {
     }
 
+    public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<VideoItem> Videos => Set<VideoItem>();
     public DbSet<VideoRendition> Renditions => Set<VideoRendition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AppUser>(user =>
+        {
+            user.ToTable("Users");
+            user.HasKey(u => u.Id);
+            user.Property(u => u.Id).ValueGeneratedNever();
+
+            user.Property(u => u.Username).HasMaxLength(30).IsRequired();
+            user.Property(u => u.NormalizedUsername).HasMaxLength(30).IsRequired();
+            user.Property(u => u.PasswordHash).HasMaxLength(256).IsRequired();
+
+            // Case-insensitive uniqueness: "Marek" and "marek" are the same account name.
+            user.HasIndex(u => u.NormalizedUsername).IsUnique();
+        });
+
         modelBuilder.Entity<VideoItem>(video =>
         {
             video.ToTable("Videos");
@@ -58,6 +73,13 @@ public abstract class DoomScrollerDbContext : DbContext
                 probe.Property(p => p.VideoCodec).HasColumnName("ProbeVideoCodec").HasMaxLength(50);
                 probe.Property(p => p.AudioCodec).HasColumnName("ProbeAudioCodec").HasMaxLength(50);
             });
+
+            // Optional only because videos predate accounts. Restrict: an author with videos can't be
+            // deleted out from under them.
+            video.HasOne(v => v.Author)
+                 .WithMany()
+                 .HasForeignKey(v => v.AuthorId)
+                 .OnDelete(DeleteBehavior.Restrict);
 
             video.HasMany(v => v.Renditions)
                  .WithOne()

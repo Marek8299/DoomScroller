@@ -20,10 +20,45 @@ namespace DoomScroller.Api.Migrations.MySql
                 .HasAnnotation("Relational:MaxIdentifierLength", 64)
                 .HasAnnotation("MySql:CharSet", "utf8mb4");
 
+            modelBuilder.Entity("DoomScroller.Api.Models.AppUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedNever()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("NormalizedUsername")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedUsername")
+                        .IsUnique();
+
+                    b.ToTable("Users");
+                });
+
             modelBuilder.Entity("DoomScroller.Api.Models.VideoItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedNever()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("AuthorId")
                         .HasColumnType("char(36)");
 
                     b.Property<string>("Description")
@@ -64,6 +99,8 @@ namespace DoomScroller.Api.Migrations.MySql
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
 
                     b.HasIndex("Status");
 
@@ -131,6 +168,11 @@ namespace DoomScroller.Api.Migrations.MySql
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoItem", b =>
                 {
+                    b.HasOne("DoomScroller.Api.Models.AppUser", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("DoomScroller.Api.Models.ConversionOptions", "Options", b1 =>
                         {
                             b1.Property<Guid>("VideoItemId")
@@ -200,6 +242,8 @@ namespace DoomScroller.Api.Migrations.MySql
                             b1.WithOwner()
                                 .HasForeignKey("VideoItemId");
                         });
+
+                    b.Navigation("Author");
 
                     b.Navigation("Options")
                         .IsRequired();
