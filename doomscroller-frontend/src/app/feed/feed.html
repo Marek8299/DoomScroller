@@ -2,6 +2,7 @@
   <div class="profile-banner">
     <strong>&#64;{{ p.username }}</strong>
     <span>{{ p.videoCount }} {{ p.videoCount === 1 ? 'video' : 'videos' }}</span>
+    <span>{{ p.likeCount }} {{ p.likeCount === 1 ? 'like' : 'likes' }}</span>
   </div>
 }
 
@@ -26,6 +27,11 @@
       <section class="feed-item">
         @if (item.src; as src) {
           <app-video-player [src]="src" />
+
+          <div class="actions">
+            <app-like-button [videoId]="item.video.id" [count]="item.video.likeCount" [likedByMe]="item.video.likedByMe" />
+            <app-mute-button />
+          </div>
         } @else {
           <!-- Only ever shown to the author, for their own queued/processing/failed uploads. -->
           <div class="pending">

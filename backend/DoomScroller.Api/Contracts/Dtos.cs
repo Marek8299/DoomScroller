@@ -29,8 +29,12 @@ public record VideoDto(
     string? ErrorMessage,
     ProbeDto? Probe,
     AuthorDto? Author,
-    IReadOnlyList<VideoRenditionDto> Renditions);
+    IReadOnlyList<VideoRenditionDto> Renditions,
+    int LikeCount,
+    bool LikedByMe);
+
+public record LikeStateDto(int LikeCount, bool Liked);
 
 public record CurrentUserDto(Guid Id, string Username);
 
-public record ProfileDto(string Username, DateTimeOffset CreatedAtUtc, int VideoCount);
+public record ProfileDto(string Username, DateTimeOffset CreatedAtUtc, int VideoCount, int LikeCount);

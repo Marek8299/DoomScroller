@@ -1,0 +1,53 @@
+// Shared look for the round buttons in the feed's right-hand action column.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 0.75rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+    stroke: #fff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+// The heart: outline when not liked, solid red when liked.
+button.liked svg {
+  fill: #fe2c55;
+  stroke: #fe2c55;
+}
+
+button.heart svg {
+  fill: none;
+  stroke-width: 2;
+}
+
+button.heart.liked svg {
+  fill: #fe2c55;
+}

@@ -106,6 +106,24 @@ namespace DoomScroller.Api.Migrations.Sqlite
                     b.ToTable("Videos");
                 });
 
+            modelBuilder.Entity("DoomScroller.Api.Models.VideoLike", b =>
+                {
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("VideoId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("VideoLikes");
+                });
+
             modelBuilder.Entity("DoomScroller.Api.Models.VideoRendition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -246,6 +264,21 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .IsRequired();
 
                     b.Navigation("Probe");
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.VideoLike", b =>
+                {
+                    b.HasOne("DoomScroller.Api.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DoomScroller.Api.Models.VideoItem", null)
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoRendition", b =>

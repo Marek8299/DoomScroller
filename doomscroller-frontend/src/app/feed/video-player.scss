@@ -25,35 +25,6 @@
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
 }
 
-// Right edge, above the caption: where a thumb rests, and clear of the seek bar.
-.mute {
-  position: absolute;
-  right: 12px;
-  bottom: 96px;
-  z-index: 3;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-
-  svg {
-    width: 24px;
-    height: 24px;
-    fill: #fff;
-    stroke: #fff;
-  }
-
-  &:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
-  }
-}
-
 // A 28px-tall hit area (easy to grab with a thumb) around a thin visible track.
 .seek {
   position: absolute;

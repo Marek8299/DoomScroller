@@ -2,7 +2,7 @@ import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { UserProfile, VideoItem } from '../models/video.model';
+import { LikeState, UserProfile, VideoItem } from '../models/video.model';
 
 export interface UploadProgress {
   progressPercent: number;
@@ -17,6 +17,15 @@ export class VideoService {
 
   getFeed(skip = 0, take = 10): Observable<VideoItem[]> {
     return this.http.get<VideoItem[]>(`${this.base}/videos`, { params: { skip, take } });
+  }
+
+  /** Idempotent: liking an already-liked video just returns the current state. */
+  like(videoId: string): Observable<LikeState> {
+    return this.http.put<LikeState>(`${this.base}/videos/${videoId}/like`, null);
+  }
+
+  unlike(videoId: string): Observable<LikeState> {
+    return this.http.delete<LikeState>(`${this.base}/videos/${videoId}/like`);
   }
 
   getProfile(username: string): Observable<UserProfile> {

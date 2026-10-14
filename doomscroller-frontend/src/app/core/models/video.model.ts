@@ -35,10 +35,20 @@ export interface VideoItem {
   /** Missing for videos uploaded before accounts existed. */
   author?: Author;
   renditions: VideoRendition[];
+  likeCount: number;
+  /** Whether the signed-in viewer has liked it (always false when signed out). */
+  likedByMe: boolean;
 }
 
 export interface UserProfile {
   username: string;
   createdAtUtc: string;
   videoCount: number;
+  /** Total likes across their videos. */
+  likeCount: number;
+}
+
+export interface LikeState {
+  likeCount: number;
+  liked: boolean;
 }

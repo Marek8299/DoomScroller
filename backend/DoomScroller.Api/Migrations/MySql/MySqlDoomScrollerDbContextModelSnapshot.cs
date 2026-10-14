@@ -109,6 +109,24 @@ namespace DoomScroller.Api.Migrations.MySql
                     b.ToTable("Videos");
                 });
 
+            modelBuilder.Entity("DoomScroller.Api.Models.VideoLike", b =>
+                {
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("VideoId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("VideoLikes");
+                });
+
             modelBuilder.Entity("DoomScroller.Api.Models.VideoRendition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -249,6 +267,21 @@ namespace DoomScroller.Api.Migrations.MySql
                         .IsRequired();
 
                     b.Navigation("Probe");
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.VideoLike", b =>
+                {
+                    b.HasOne("DoomScroller.Api.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DoomScroller.Api.Models.VideoItem", null)
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoRendition", b =>

@@ -20,6 +20,7 @@ public abstract class DoomScrollerDbContext : DbContext
 
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<VideoItem> Videos => Set<VideoItem>();
+    public DbSet<VideoLike> Likes => Set<VideoLike>();
     public DbSet<VideoRendition> Renditions => Set<VideoRendition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -88,6 +89,16 @@ public abstract class DoomScrollerDbContext : DbContext
 
             video.HasIndex(v => v.UploadedAtUtc);
             video.HasIndex(v => v.Status);
+        });
+
+        modelBuilder.Entity<VideoLike>(like =>
+        {
+            like.ToTable("VideoLikes");
+            like.HasKey(l => new { l.VideoId, l.UserId }); // one like per user per video, enforced by the database
+
+            // Likes are meaningless without either side, so they go away with the video or the user.
+            like.HasOne<VideoItem>().WithMany().HasForeignKey(l => l.VideoId).OnDelete(DeleteBehavior.Cascade);
+            like.HasOne<AppUser>().WithMany().HasForeignKey(l => l.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<VideoRendition>(rendition =>

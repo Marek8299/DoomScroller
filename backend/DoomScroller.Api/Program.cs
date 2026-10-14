@@ -68,6 +68,7 @@ switch (dbProvider)
 
 builder.Services.AddScoped<IVideoRepository, EfVideoRepository>();
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
+builder.Services.AddScoped<ILikeRepository, EfLikeRepository>();
 builder.Services.AddDoomScrollerAuth();
 builder.Services.AddSingleton<IVideoProcessingQueue, VideoProcessingQueue>();
 builder.Services.AddSingleton<IFfmpegService, FfmpegService>();

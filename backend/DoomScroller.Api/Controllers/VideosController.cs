@@ -13,6 +13,7 @@ namespace DoomScroller.Api.Controllers;
 public class VideosController : ControllerBase
 {
     private readonly IVideoRepository _repository;
+    private readonly ILikeRepository _likes;
     private readonly IVideoProcessingQueue _queue;
     private readonly IWebHostEnvironment _env;
     private readonly ConversionOptions _conversion;
@@ -25,12 +26,14 @@ public class VideosController : ControllerBase
 
     public VideosController(
         IVideoRepository repository,
+        ILikeRepository likes,
         IVideoProcessingQueue queue,
         IWebHostEnvironment env,
         IOptions<ConversionOptions> conversion,
         ILogger<VideosController> logger)
     {
         _repository = repository;
+        _likes = likes;
         _queue = queue;
         _env = env;
         _conversion = conversion.Value;
@@ -114,7 +117,7 @@ public class VideosController : ControllerBase
 
         var viewerId = User.GetUserId();
         var videos = await _repository.GetFeedAsync(skip, take, ct);
-        return Ok(videos.Select(v => VideoMapper.ToDto(v, viewerId)).ToList());
+        return Ok(await VideoMapper.ToDtosAsync(videos, _likes, viewerId, ct));
     }
 
     /// <summary>
@@ -132,6 +135,27 @@ public class VideosController : ControllerBase
             return NotFound();
         }
 
-        return Ok(VideoMapper.ToDto(video, viewerId));
+        var info = await _likes.GetInfoAsync(new[] { video.Id }, viewerId, ct);
+        return Ok(VideoMapper.ToDto(video, viewerId, info.GetValueOrDefault(video.Id)));
+    }
+
+    /// <summary>Like a video. Idempotent: liking it again changes nothing.</summary>
+    [HttpPut("{id:guid}/like")]
+    [Authorize]
+    public Task<ActionResult<LikeStateDto>> Like(Guid id, CancellationToken ct) => SetLikedAsync(id, true, ct);
+
+    /// <summary>Remove your like. Idempotent: fine if you hadn't liked it.</summary>
+    [HttpDelete("{id:guid}/like")]
+    [Authorize]
+    public Task<ActionResult<LikeStateDto>> Unlike(Guid id, CancellationToken ct) => SetLikedAsync(id, false, ct);
+
+    private async Task<ActionResult<LikeStateDto>> SetLikedAsync(Guid videoId, bool liked, CancellationToken ct)
+    {
+        // Only finished videos are public, so only those can be liked (an unfinished one is a 404, like everywhere else).
+        var video = await _repository.GetAsync(videoId, ct);
+        if (video is null || video.Status != RenditionStatus.Ready) return NotFound();
+
+        var state = await _likes.SetLikedAsync(videoId, User.GetUserId()!.Value, liked, ct);
+        return Ok(new LikeStateDto(state.Count, state.LikedByViewer));
     }
 }

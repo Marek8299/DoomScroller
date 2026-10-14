@@ -50,25 +50,14 @@ describe('VideoPlayer', () => {
   });
 
   const seekBar = () => el.querySelector<HTMLElement>('.seek')!;
-  const muteButton = () => el.querySelector<HTMLButtonElement>('.mute')!;
 
   it('has no native controls', () => {
     expect(video.hasAttribute('controls')).toBe(false);
   });
 
-  it('starts muted, and the button toggles the shared mute state and its label', async () => {
+  it('is muted until the shared mute state says otherwise, and follows it', async () => {
     expect(video.muted).toBe(true);
-    expect(muteButton().getAttribute('aria-label')).toBe('Unmute');
 
-    muteButton().click();
-    await fixture.whenStable();
-
-    expect(prefs.muted()).toBe(false);
-    expect(video.muted).toBe(false);
-    expect(muteButton().getAttribute('aria-label')).toBe('Mute');
-  });
-
-  it('follows the shared mute state when another part of the app changes it', async () => {
     prefs.muted.set(false);
     await fixture.whenStable();
     expect(video.muted).toBe(false);

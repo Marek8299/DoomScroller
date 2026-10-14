@@ -44,6 +44,14 @@ npm start
 Opens on `http://localhost:4200` and talks to the API at `http://localhost:5080/api`
 (`src/environments/environment.ts`). CORS for that origin is already allowed on the backend.
 
+**Player controls** (`feed/video-player.*`): the browser's native controls are off. Tap a video
+to pause/resume. A column of round buttons on the right edge (thumb-reachable) holds like and mute;
+mute state is shared by the whole feed (`PlaybackPreferences`), so unmuting once carries over to
+the next videos. The
+progress bar along the bottom can be tapped, dragged, or driven with the arrow keys / Home / End.
+Videos always start muted after a page load because browsers block unmuted autoplay until the
+user has interacted with the page. Run the frontend tests with `npm test`.
+
 ## 4. Using a custom-built ffmpeg (e.g. faster than distro-packaged)
 
 `FfmpegPath`/`FfprobePath` in `appsettings.json` (or `FFMPEG__FFMPEGPATH` /
@@ -227,9 +235,13 @@ Videos:
 - `GET /api/videos?skip=&take=` — feed of ready videos from everyone, newest first.
 - `GET /api/videos/{id}` — one video. Unfinished videos are only visible to their author (404 for
   everyone else).
+- `PUT /api/videos/{id}/like` / `DELETE /api/videos/{id}/like` — **require sign-in.** Like / remove
+  your like; both idempotent. Return `{likeCount, liked}`. Only finished videos can be liked
+  (404 otherwise).
 
 Authors:
-- `GET /api/users/{username}` — `{username, createdAtUtc, videoCount}`.
+- `GET /api/users/{username}` — `{username, createdAtUtc, videoCount, likeCount}` (likes received
+  across their finished videos).
 - `GET /api/users/{username}/videos?skip=&take=` — that author's videos, newest first. Visitors
   see finished videos; the author also sees their own queued/processing/failed uploads.
 
@@ -266,7 +278,22 @@ file path can leak.
 - **Not built yet**: email / password reset, account deletion, roles or moderation, invite-only
   registration. Say if you want any of them.
 
-## 9. Known corners cut for "small clone" scope
+## 9. Likes
+
+Every video in the API carries `likeCount` and `likedByMe` (always false when signed out). Likes
+live in a `VideoLikes` table whose primary key is `(VideoId, UserId)`, so one user can't like a
+video twice, however many requests race. The database enforces that, not just the code. Counts are
+computed from that table instead of being stored on the video, so they can't drift or lose
+increments under concurrency; a page of videos costs two extra queries in total, not two per video.
+Likes disappear with their video or user (cascade).
+
+In the UI the heart updates instantly and rolls back if the server refuses; taps while a request
+is in flight are ignored so a double-tap can't desync the count. Signed-out visitors who tap it go
+to the login page and come back afterwards; a session that expired mid-visit is handled the same way.
+
+Not built yet: a "videos I liked" page, double-tap-to-like on the video, comments.
+
+## 10. Known corners cut for "small clone" scope
 
 - No likes/comments or thumbnails — the feed just autoplays each rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;

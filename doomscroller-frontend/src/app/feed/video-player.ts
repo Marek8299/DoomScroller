@@ -6,7 +6,6 @@ import { formatTime, progressPercent, seekTimeFromKey, seekTimeFromPointer } fro
 /**
  * One feed video with our own controls instead of the browser's:
  *  - tap the video to pause/resume,
- *  - mute button on the right edge (thumb-reachable; state is shared across the whole feed),
  *  - a thin progress bar along the bottom that you can tap, drag or use with the arrow keys to seek.
  */
 @Component({
@@ -45,10 +44,6 @@ export class VideoPlayer {
     } else {
       video.pause();
     }
-  }
-
-  protected toggleMute(): void {
-    this.prefs.toggleMuted();
   }
 
   // --- seek bar -------------------------------------------------------------------------------

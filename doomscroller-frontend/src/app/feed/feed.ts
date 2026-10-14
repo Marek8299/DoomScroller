@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, catchError, of, switchMap, tap, timer } from 'rxjs';
 import { VideoService } from '../core/services/video.service';
 import { VideoItem } from '../core/models/video.model';
+import { LikeButton } from './like-button';
+import { MuteButton } from './mute-button';
 import { VideoPlayer } from './video-player';
 
 /**
@@ -12,7 +14,7 @@ import { VideoPlayer } from './video-player';
  */
 @Component({
   selector: 'app-feed',
-  imports: [RouterLink, VideoPlayer],
+  imports: [RouterLink, VideoPlayer, LikeButton, MuteButton],
   templateUrl: './feed.html',
   styleUrl: './feed.scss'
 })
