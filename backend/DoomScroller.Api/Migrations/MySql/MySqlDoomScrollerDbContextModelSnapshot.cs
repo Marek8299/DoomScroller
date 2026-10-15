@@ -109,6 +109,35 @@ namespace DoomScroller.Api.Migrations.MySql
                     b.ToTable("Videos");
                 });
 
+            modelBuilder.Entity("DoomScroller.Api.Models.VideoComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedNever()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("VideoId", "CreatedAtUtc");
+
+                    b.ToTable("VideoComments");
+                });
+
             modelBuilder.Entity("DoomScroller.Api.Models.VideoLike", b =>
                 {
                     b.Property<Guid>("VideoId")
@@ -267,6 +296,23 @@ namespace DoomScroller.Api.Migrations.MySql
                         .IsRequired();
 
                     b.Navigation("Probe");
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.VideoComment", b =>
+                {
+                    b.HasOne("DoomScroller.Api.Models.AppUser", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DoomScroller.Api.Models.VideoItem", null)
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
                 });
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoLike", b =>

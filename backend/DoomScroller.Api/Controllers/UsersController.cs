@@ -13,12 +13,14 @@ public class UsersController : ControllerBase
     private readonly IUserRepository _users;
     private readonly IVideoRepository _videos;
     private readonly ILikeRepository _likes;
+    private readonly IVideoPresenter _presenter;
 
-    public UsersController(IUserRepository users, IVideoRepository videos, ILikeRepository likes)
+    public UsersController(IUserRepository users, IVideoRepository videos, ILikeRepository likes, IVideoPresenter presenter)
     {
         _users = users;
         _videos = videos;
         _likes = likes;
+        _presenter = presenter;
     }
 
     [HttpGet("{username}")]
@@ -49,6 +51,6 @@ public class UsersController : ControllerBase
         skip = Math.Max(skip, 0);
 
         var videos = await _videos.GetByAuthorAsync(author.Id, includeUnfinished: viewerId == author.Id, skip, take, ct);
-        return Ok(await VideoMapper.ToDtosAsync(videos, _likes, viewerId, ct));
+        return Ok(await _presenter.PresentAsync(videos, viewerId, ct));
     }
 }

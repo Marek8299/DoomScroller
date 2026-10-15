@@ -30,8 +30,18 @@
 
           <div class="actions">
             <app-like-button [videoId]="item.video.id" [count]="item.video.likeCount" [likedByMe]="item.video.likedByMe" />
+            <app-comment-button [count]="item.video.commentCount" (pressed)="toggleComments(item.video.id)" />
             <app-mute-button />
           </div>
+
+          @if (openComments() === item.video.id) {
+            <app-comments-panel
+              [videoId]="item.video.id"
+              [count]="item.video.commentCount"
+              (closed)="openComments.set(null)"
+              (countChange)="setCommentCount(item.video.id, $event)"
+            />
+          }
         } @else {
           <!-- Only ever shown to the author, for their own queued/processing/failed uploads. -->
           <div class="pending">

@@ -1,4 +1,5 @@
 using DoomScroller.Api.Models;
+using DoomScroller.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -21,6 +22,7 @@ public abstract class DoomScrollerDbContext : DbContext
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<VideoItem> Videos => Set<VideoItem>();
     public DbSet<VideoLike> Likes => Set<VideoLike>();
+    public DbSet<VideoComment> Comments => Set<VideoComment>();
     public DbSet<VideoRendition> Renditions => Set<VideoRendition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -99,6 +101,21 @@ public abstract class DoomScrollerDbContext : DbContext
             // Likes are meaningless without either side, so they go away with the video or the user.
             like.HasOne<VideoItem>().WithMany().HasForeignKey(l => l.VideoId).OnDelete(DeleteBehavior.Cascade);
             like.HasOne<AppUser>().WithMany().HasForeignKey(l => l.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VideoComment>(comment =>
+        {
+            comment.ToTable("VideoComments");
+            comment.HasKey(c => c.Id);
+            comment.Property(c => c.Id).ValueGeneratedNever();
+            comment.Property(c => c.Text).HasMaxLength(CommentRules.MaxLength).IsRequired();
+
+            // Comments go away with their video or their author.
+            comment.HasOne<VideoItem>().WithMany().HasForeignKey(c => c.VideoId).OnDelete(DeleteBehavior.Cascade);
+            comment.HasOne(c => c.Author).WithMany().HasForeignKey(c => c.AuthorId).OnDelete(DeleteBehavior.Cascade);
+
+            // Serves "this video's comments, newest first" and the per-video counts.
+            comment.HasIndex(c => new { c.VideoId, c.CreatedAtUtc });
         });
 
         modelBuilder.Entity<VideoRendition>(rendition =>

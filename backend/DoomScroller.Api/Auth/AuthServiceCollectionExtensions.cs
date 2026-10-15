@@ -8,12 +8,13 @@ namespace DoomScroller.Api.Auth;
 public static class AuthServiceCollectionExtensions
 {
     public const string AuthRateLimitPolicy = "auth";
+    public const string CommentsRateLimitPolicy = "comments";
 
     /// <summary>
     /// Cookie authentication for the SPA: an HttpOnly cookie (not reachable from JavaScript, unlike a
     /// token in localStorage), SameSite=Lax so other sites can't make the browser send it on
     /// cross-site POSTs, and 401/403 status codes instead of login redirects (this is an API).
-    /// Also registers the password hasher and a per-IP rate limit for login/register.
+    /// Also registers the password hasher and rate limits (per IP for login/register, per user for comments).
     /// </summary>
     public static IServiceCollection AddDoomScrollerAuth(this IServiceCollection services)
     {
@@ -54,6 +55,20 @@ public static class AuthServiceCollectionExtensions
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    }));
+
+            // Per signed-in user (so one account can't flood a video, and users behind one shared IP
+            // don't throttle each other). Needs authentication to run BEFORE the rate limiter.
+            options.AddPolicy(CommentsRateLimitPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.User.GetUserId()?.ToString()
+                        ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                        ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0
                     }));

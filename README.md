@@ -235,6 +235,12 @@ Videos:
 - `GET /api/videos?skip=&take=` — feed of ready videos from everyone, newest first.
 - `GET /api/videos/{id}` — one video. Unfinished videos are only visible to their author (404 for
   everyone else).
+- `GET /api/videos/{id}/comments?skip=&take=` — a video's comments, newest first (default 20, max
+  50). Public. `canDelete` tells the viewer whether they may remove each one.
+- `POST /api/videos/{id}/comments` `{text}` — **requires sign-in.** Max 500 characters; limited to
+  20 per minute per user (429 beyond that). Returns 201 and the new comment.
+- `DELETE /api/videos/{id}/comments/{commentId}` — **requires sign-in.** Allowed for the comment's
+  author and for the author of the video (403 for anyone else, 404 if it's gone).
 - `PUT /api/videos/{id}/like` / `DELETE /api/videos/{id}/like` — **require sign-in.** Like / remove
   your like; both idempotent. Return `{likeCount, liked}`. Only finished videos can be liked
   (404 otherwise).
@@ -280,7 +286,7 @@ file path can leak.
 
 ## 9. Likes
 
-Every video in the API carries `likeCount` and `likedByMe` (always false when signed out). Likes
+Every video in the API carries `likeCount`, `likedByMe` and `commentCount` (always false when signed out). Likes
 live in a `VideoLikes` table whose primary key is `(VideoId, UserId)`, so one user can't like a
 video twice, however many requests race. The database enforces that, not just the code. Counts are
 computed from that table instead of being stored on the video, so they can't drift or lose
@@ -293,7 +299,31 @@ to the login page and come back afterwards; a session that expired mid-visit is 
 
 Not built yet: a "videos I liked" page, double-tap-to-like on the video, comments.
 
-## 10. Known corners cut for "small clone" scope
+## 10. Comments
+
+Flat comments (no reply threads), newest first, 500 characters max (`Services/CommentRules.cs`:
+trimmed, line endings unified, runs of blank lines collapsed). Only finished videos have comments,
+like everything else about unfinished ones.
+
+- **Who can do what**: anyone can read; signed-in users can post; a comment can be deleted by its
+  author **or by the author of the video it's on** (the minimum moderation a social app needs:
+  you can clean up your own comment section).
+- **Spam**: posting is rate-limited per signed-in user (20/minute), not per IP, so one account can't
+  flood a video and people sharing a network don't throttle each other. This needs authentication
+  to run before the rate limiter, which is the middleware order in `Program.cs`.
+- **Counts**: `commentCount` is computed from the table, batched per page of videos like the likes
+  (the new `VideoPresenter` assembles a video with its like info and comment count, so controllers
+  don't each repeat that).
+- **Storage**: `VideoComments`, indexed on `(VideoId, CreatedAtUtc)` for "newest comments of this
+  video"; comments cascade away with their video or author.
+- **UI**: the speech-bubble button in the action column opens a bottom sheet over the video (the
+  video keeps playing above it). Enter posts, Shift+Enter adds a line, Escape closes, "Load more"
+  pages through older ones. Deleting is instant and rolls back if the server refuses; a failed post
+  keeps what you typed.
+
+Not built yet: replies/threads, editing, likes on comments, reporting, mentions, notifications.
+
+## 11. Known corners cut for "small clone" scope
 
 - No likes/comments or thumbnails — the feed just autoplays each rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;

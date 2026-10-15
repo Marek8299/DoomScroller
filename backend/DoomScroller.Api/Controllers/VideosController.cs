@@ -14,6 +14,7 @@ public class VideosController : ControllerBase
 {
     private readonly IVideoRepository _repository;
     private readonly ILikeRepository _likes;
+    private readonly IVideoPresenter _presenter;
     private readonly IVideoProcessingQueue _queue;
     private readonly IWebHostEnvironment _env;
     private readonly ConversionOptions _conversion;
@@ -27,6 +28,7 @@ public class VideosController : ControllerBase
     public VideosController(
         IVideoRepository repository,
         ILikeRepository likes,
+        IVideoPresenter presenter,
         IVideoProcessingQueue queue,
         IWebHostEnvironment env,
         IOptions<ConversionOptions> conversion,
@@ -34,6 +36,7 @@ public class VideosController : ControllerBase
     {
         _repository = repository;
         _likes = likes;
+        _presenter = presenter;
         _queue = queue;
         _env = env;
         _conversion = conversion.Value;
@@ -117,7 +120,7 @@ public class VideosController : ControllerBase
 
         var viewerId = User.GetUserId();
         var videos = await _repository.GetFeedAsync(skip, take, ct);
-        return Ok(await VideoMapper.ToDtosAsync(videos, _likes, viewerId, ct));
+        return Ok(await _presenter.PresentAsync(videos, viewerId, ct));
     }
 
     /// <summary>
@@ -135,8 +138,7 @@ public class VideosController : ControllerBase
             return NotFound();
         }
 
-        var info = await _likes.GetInfoAsync(new[] { video.Id }, viewerId, ct);
-        return Ok(VideoMapper.ToDto(video, viewerId, info.GetValueOrDefault(video.Id)));
+        return Ok(await _presenter.PresentAsync(video, viewerId, ct));
     }
 
     /// <summary>Like a video. Idempotent: liking it again changes nothing.</summary>

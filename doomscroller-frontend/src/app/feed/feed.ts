@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, catchError, of, switchMap, tap, timer } from 'rxjs';
 import { VideoService } from '../core/services/video.service';
 import { VideoItem } from '../core/models/video.model';
+import { CommentButton } from './comment-button';
+import { CommentsPanel } from './comments-panel';
 import { LikeButton } from './like-button';
 import { MuteButton } from './mute-button';
 import { VideoPlayer } from './video-player';
@@ -14,7 +16,7 @@ import { VideoPlayer } from './video-player';
  */
 @Component({
   selector: 'app-feed',
-  imports: [RouterLink, VideoPlayer, LikeButton, MuteButton],
+  imports: [RouterLink, VideoPlayer, LikeButton, CommentButton, CommentsPanel, MuteButton],
   templateUrl: './feed.html',
   styleUrl: './feed.scss'
 })
@@ -28,6 +30,9 @@ export class Feed {
   protected readonly videos = signal<VideoItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | undefined>(undefined);
+
+  /** Which video's comments panel is open (only one at a time). */
+  protected readonly openComments = signal<string | null>(null);
 
   /** Each video paired with the rendition URL the feed should play. */
   protected readonly items = computed(() =>
@@ -76,6 +81,15 @@ export class Feed {
         this.videos.set(videos);
         this.loading.set(false);
       });
+  }
+
+  protected toggleComments(videoId: string): void {
+    this.openComments.update((open) => (open === videoId ? null : videoId));
+  }
+
+  /** The panel posted or deleted a comment: keep the button's count in step until the next refresh. */
+  protected setCommentCount(videoId: string, count: number): void {
+    this.videos.update((list) => list.map((v) => (v.id === videoId ? { ...v, commentCount: count } : v)));
   }
 
   private fetch(username: string | undefined): Observable<VideoItem[]> {

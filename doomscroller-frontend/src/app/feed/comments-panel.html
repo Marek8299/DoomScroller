@@ -1,0 +1,62 @@
+<div class="panel" role="dialog" aria-label="Comments">
+  <header>
+    <h2>{{ title() }}</h2>
+    <button type="button" class="close" aria-label="Close comments" (click)="closed.emit()">&times;</button>
+  </header>
+
+  <ul class="list">
+    @if (loading()) {
+      <li class="note">Loading…</li>
+    } @else if (loadError(); as message) {
+      <li class="note error">{{ message }}</li>
+    } @else if (comments().length === 0) {
+      <li class="note">No comments yet. Be the first!</li>
+    }
+
+    @for (comment of comments(); track comment.id) {
+      <li class="comment">
+        <div class="meta">
+          <a class="author" [routerLink]="['/u', comment.author.username]">&#64;{{ comment.author.username }}</a>
+          <span class="time">{{ timeAgo(comment.createdAtUtc) }}</span>
+          @if (comment.canDelete) {
+            <button type="button" class="delete" aria-label="Delete comment" (click)="remove(comment)">Delete</button>
+          }
+        </div>
+        <p class="text">{{ comment.text }}</p>
+      </li>
+    }
+
+    @if (hasMore()) {
+      <li class="more">
+        <button type="button" (click)="loadMore()" [disabled]="loadingMore()">
+          {{ loadingMore() ? 'Loading…' : 'Load more' }}
+        </button>
+      </li>
+    }
+  </ul>
+
+  @if (actionError(); as message) {
+    <p class="action-error" role="alert">{{ message }}</p>
+  }
+
+  @if (auth.isLoggedIn()) {
+    <form class="composer" (submit)="$event.preventDefault(); submit()">
+      <textarea
+        [formControl]="input"
+        rows="1"
+        [attr.maxlength]="maxLength"
+        placeholder="Add a comment…"
+        aria-label="Add a comment"
+        (keydown)="onKeydown($event)"
+      ></textarea>
+      @if (remaining() <= 50) {
+        <span class="remaining" [class.over]="remaining() < 0">{{ remaining() }}</span>
+      }
+      <button type="submit" [disabled]="!canSend()">{{ posting() ? '…' : 'Post' }}</button>
+    </form>
+  } @else {
+    <p class="login-prompt">
+      <a routerLink="/login" [queryParams]="loginQuery()">Log in</a> to comment.
+    </p>
+  }
+</div>

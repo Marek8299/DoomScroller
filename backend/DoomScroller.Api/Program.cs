@@ -1,4 +1,5 @@
 using DoomScroller.Api.Auth;
+using DoomScroller.Api.Contracts;
 using DoomScroller.Api.Data;
 using DoomScroller.Api.Models;
 using DoomScroller.Api.Options;
@@ -69,6 +70,8 @@ switch (dbProvider)
 builder.Services.AddScoped<IVideoRepository, EfVideoRepository>();
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<ILikeRepository, EfLikeRepository>();
+builder.Services.AddScoped<ICommentRepository, EfCommentRepository>();
+builder.Services.AddScoped<IVideoPresenter, VideoPresenter>();
 builder.Services.AddDoomScrollerAuth();
 builder.Services.AddSingleton<IVideoProcessingQueue, VideoProcessingQueue>();
 builder.Services.AddSingleton<IFfmpegService, FfmpegService>();
@@ -117,8 +120,9 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/media"
 });
 
-app.UseRateLimiter();
+// Authentication first: the per-user comment rate limit needs to know who the caller is.
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();

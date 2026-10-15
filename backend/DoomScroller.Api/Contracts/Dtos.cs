@@ -31,7 +31,10 @@ public record VideoDto(
     AuthorDto? Author,
     IReadOnlyList<VideoRenditionDto> Renditions,
     int LikeCount,
-    bool LikedByMe);
+    bool LikedByMe,
+    int CommentCount);
+
+public record CommentDto(Guid Id, string Text, DateTimeOffset CreatedAtUtc, AuthorDto Author, bool CanDelete);
 
 public record LikeStateDto(int LikeCount, bool Liked);
 

@@ -38,6 +38,16 @@ export interface VideoItem {
   likeCount: number;
   /** Whether the signed-in viewer has liked it (always false when signed out). */
   likedByMe: boolean;
+  commentCount: number;
+}
+
+export interface CommentItem {
+  id: string;
+  text: string;
+  createdAtUtc: string;
+  author: Author;
+  /** True for the comment's author and for the author of the video it's on. */
+  canDelete: boolean;
 }
 
 export interface UserProfile {
