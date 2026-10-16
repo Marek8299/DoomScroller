@@ -18,11 +18,19 @@
         <div class="meta">
           <a class="author" [routerLink]="['/u', comment.author.username]">&#64;{{ comment.author.username }}</a>
           <span class="time">{{ timeAgo(comment.createdAtUtc) }}</span>
-          @if (comment.canDelete) {
-            <button type="button" class="delete" aria-label="Delete comment" (click)="remove(comment)">Delete</button>
+          @if (comment.canDelete && confirmingId() !== comment.id) {
+            <button type="button" class="delete" aria-label="Delete comment" (click)="askDelete(comment)">Delete</button>
           }
         </div>
         <p class="text">{{ comment.text }}</p>
+
+        @if (confirmingId() === comment.id) {
+          <div class="confirm" role="group" aria-label="Confirm deleting this comment">
+            <span>Delete this comment?</span>
+            <button type="button" class="cancel" (click)="cancelDelete()">Cancel</button>
+            <button type="button" class="confirm-delete" (click)="remove(comment)">Delete</button>
+          </div>
+        }
       </li>
     }
 
@@ -52,7 +60,16 @@
       @if (remaining() <= 50) {
         <span class="remaining" [class.over]="remaining() < 0">{{ remaining() }}</span>
       }
-      <button type="submit" [disabled]="!canSend()">{{ posting() ? '…' : 'Post' }}</button>
+      <button
+        type="submit"
+        class="send"
+        aria-label="Post comment"
+        title="Post comment"
+        [attr.aria-busy]="posting()"
+        [disabled]="!canSend()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21 23 12 2 3v7l15 2-15 2z" /></svg>
+      </button>
     </form>
   } @else {
     <p class="login-prompt">

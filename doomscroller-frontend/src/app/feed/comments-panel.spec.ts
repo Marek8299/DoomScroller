@@ -91,6 +91,13 @@ describe('CommentsPanel', () => {
   });
 
   describe('posting', () => {
+    it('uses an accessible icon button instead of the word "Post"', async () => {
+      await create();
+      expect(submitButton().querySelector('svg')).not.toBeNull();
+      expect(submitButton().textContent!.trim()).toBe('');
+      expect(submitButton().getAttribute('aria-label')).toBe('Post comment');
+    });
+
     it('keeps Post disabled while the box is empty or only whitespace', async () => {
       await create();
       expect(submitButton().disabled).toBe(true);
@@ -178,16 +185,90 @@ describe('CommentsPanel', () => {
   });
 
   describe('deleting', () => {
-    it('removes the comment at once and lowers the total', async () => {
+    const askToDelete = async (index = 0) => {
+      (el.querySelectorAll('.delete')[index] as HTMLButtonElement).click();
+      await fixture.whenStable();
+    };
+    const confirmDelete = async () => {
+      (el.querySelector('.confirm-delete') as HTMLButtonElement).click();
+      await fixture.whenStable();
+    };
+
+    it('asks first: pressing Delete deletes nothing yet and shows a confirmation', async () => {
+      api.getComments.mockReturnValue(of([comment('a', { canDelete: true })]));
+      await create(1);
+
+      await askToDelete();
+
+      expect(api.delete).not.toHaveBeenCalled();
+      expect(rows()).toHaveLength(1);
+      expect(el.querySelector('.confirm')!.textContent).toContain('Delete this comment?');
+      expect(el.querySelector('.delete')).toBeNull(); // the link is replaced by the question
+    });
+
+    it('focuses Cancel, so a stray Enter cannot delete anything', async () => {
+      api.getComments.mockReturnValue(of([comment('a', { canDelete: true })]));
+      await create(1);
+      document.body.appendChild(el); // focus only works for elements that are in the document
+
+      await askToDelete();
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(el.querySelector('.cancel'));
+      el.remove();
+    });
+
+    it('Cancel keeps the comment and never calls the server', async () => {
+      api.getComments.mockReturnValue(of([comment('a', { canDelete: true })]));
+      await create(1);
+
+      await askToDelete();
+      (el.querySelector('.cancel') as HTMLButtonElement).click();
+      await fixture.whenStable();
+
+      expect(api.delete).not.toHaveBeenCalled();
+      expect(rows()).toHaveLength(1);
+      expect(el.querySelector('.confirm')).toBeNull();
+      expect(el.querySelector('.delete')).not.toBeNull(); // back to the normal link
+      expect(emitted.count).toEqual([]);
+    });
+
+    it('asks about one comment at a time', async () => {
+      api.getComments.mockReturnValue(of([comment('a', { canDelete: true }), comment('b', { canDelete: true })]));
+      await create(2);
+
+      await askToDelete(0);
+      await askToDelete(0); // the first row's link is gone, so index 0 is now the second comment's link
+
+      expect(el.querySelectorAll('.confirm')).toHaveLength(1);
+      expect(rows()[1].querySelector('.confirm')).not.toBeNull();
+    });
+
+    it('Escape backs out of the question first and only then closes the panel', async () => {
+      api.getComments.mockReturnValue(of([comment('a', { canDelete: true })]));
+      await create(1);
+      await askToDelete();
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await fixture.whenStable();
+      expect(el.querySelector('.confirm')).toBeNull();
+      expect(emitted.closed).toBe(0);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(emitted.closed).toBe(1);
+    });
+
+    it('once confirmed, removes the comment at once and lowers the total', async () => {
       api.getComments.mockReturnValue(of([comment('a', { canDelete: true }), comment('b')]));
       api.delete.mockReturnValue(of(undefined));
       await create(2);
 
-      (el.querySelector('.delete') as HTMLButtonElement).click();
-      await fixture.whenStable();
+      await askToDelete();
+      await confirmDelete();
 
       expect(api.delete).toHaveBeenCalledWith('v1', 'a');
       expect(rows()).toHaveLength(1);
+      expect(el.querySelector('.confirm')).toBeNull();
       expect(emitted.count).toEqual([1]);
     });
 
@@ -196,8 +277,8 @@ describe('CommentsPanel', () => {
       api.delete.mockReturnValue(throwError(() => ({ status: 500 })));
       await create(3);
 
-      (el.querySelector('.delete') as HTMLButtonElement).click();
-      await fixture.whenStable();
+      await askToDelete();
+      await confirmDelete();
 
       expect(rows().map((r) => r.textContent)).toEqual([
         expect.stringContaining('text a'),

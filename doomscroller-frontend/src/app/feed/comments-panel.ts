@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, afterNextRender, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -17,11 +17,13 @@ export const MAX_COMMENT_LENGTH = 500; // mirrors CommentRules.MaxLength on the 
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './comments-panel.html',
   styleUrl: './comments-panel.scss',
-  host: { '(document:keydown.escape)': 'closed.emit()' }
+  host: { '(document:keydown.escape)': 'onEscape()' }
 })
 export class CommentsPanel implements OnInit {
   private readonly api = inject(CommentService);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   protected readonly auth = inject(AuthService);
 
   readonly videoId = input.required<string>();
@@ -39,6 +41,9 @@ export class CommentsPanel implements OnInit {
   protected readonly loadError = signal<string | undefined>(undefined);
   protected readonly actionError = signal<string | undefined>(undefined);
   protected readonly posting = signal(false);
+
+  /** The comment whose "Delete this comment?" confirmation is showing (at most one). */
+  protected readonly confirmingId = signal<string | null>(null);
 
   protected readonly maxLength = MAX_COMMENT_LENGTH;
   protected readonly input = new FormControl('', { nonNullable: true });
@@ -131,7 +136,30 @@ export class CommentsPanel implements OnInit {
     });
   }
 
+  /** First step of deleting: show the confirmation, with the safe choice (Cancel) focused. */
+  protected askDelete(comment: CommentItem): void {
+    this.confirmingId.set(comment.id);
+    afterNextRender(() => this.host.querySelector<HTMLButtonElement>('.confirm .cancel')?.focus(), {
+      injector: this.injector
+    });
+  }
+
+  protected cancelDelete(): void {
+    this.confirmingId.set(null);
+  }
+
+  /** Escape backs out of a pending delete first; only a second press closes the panel. */
+  protected onEscape(): void {
+    if (this.confirmingId() !== null) {
+      this.cancelDelete();
+    } else {
+      this.closed.emit();
+    }
+  }
+
+  /** Second step: actually delete (only reachable from the confirmation). */
   protected remove(comment: CommentItem): void {
+    this.confirmingId.set(null);
     const index = this.comments().findIndex((c) => c.id === comment.id);
     if (index < 0) return;
 

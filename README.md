@@ -318,8 +318,10 @@ like everything else about unfinished ones.
   video"; comments cascade away with their video or author.
 - **UI**: the speech-bubble button in the action column opens a bottom sheet over the video (the
   video keeps playing above it). Enter posts, Shift+Enter adds a line, Escape closes, "Load more"
-  pages through older ones. Deleting is instant and rolls back if the server refuses; a failed post
-  keeps what you typed.
+  pages through older ones. Posting is a send-icon button. Deleting asks first: "Delete this comment?"
+  appears inline under the comment with Cancel focused (so a stray Enter can't delete it), and Escape
+  backs out of the question before it would close the panel. After confirming, the comment disappears
+  at once and comes back if the server refuses; a failed post keeps what you typed.
 
 Not built yet: replies/threads, editing, likes on comments, reporting, mentions, notifications.
 

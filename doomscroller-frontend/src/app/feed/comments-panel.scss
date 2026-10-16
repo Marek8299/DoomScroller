@@ -101,6 +101,39 @@ header {
   overflow-wrap: anywhere;
 }
 
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #ddd;
+
+  span {
+    margin-right: auto;
+  }
+
+  button {
+    border-radius: 14px;
+    padding: 5px 14px;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .cancel {
+    background: none;
+    border: 1px solid #444;
+    color: #fff;
+  }
+
+  .confirm-delete {
+    background: #fe2c55;
+    border: 1px solid #fe2c55;
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
 .more {
   padding: 8px 0 16px;
   text-align: center;
@@ -143,17 +176,33 @@ header {
     field-sizing: content; // grows with the text where supported
   }
 
-  button {
+  .send {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
     background: none;
     border: none;
-    padding: 8px 4px;
-    color: #fe2c55;
-    font-weight: 700;
+    border-radius: 50%;
     cursor: pointer;
 
+    svg {
+      width: 24px;
+      height: 24px;
+      fill: #fe2c55;
+    }
+
     &:disabled {
-      color: #555;
       cursor: default;
+
+      svg {
+        fill: #555;
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid #fff;
     }
   }
 }
