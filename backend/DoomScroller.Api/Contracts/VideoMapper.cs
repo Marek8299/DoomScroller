@@ -33,6 +33,7 @@ public static class VideoMapper
             renditions,
             likes?.Count ?? 0,
             likes?.LikedByViewer ?? false,
-            commentCount);
+            commentCount,
+            isOwner);
     }
 }

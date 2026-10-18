@@ -6,9 +6,6 @@ namespace DoomScroller.Api.Models;
 /// </summary>
 public class UploadVideoRequest
 {
-    public const int MaxTitleLength = 200;
-    public const int MaxDescriptionLength = 2000;
-
     public IFormFile? File { get; set; }
     public string? Title { get; set; }
     public string? Description { get; set; }

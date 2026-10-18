@@ -32,6 +32,9 @@
             <app-like-button [videoId]="item.video.id" [count]="item.video.likeCount" [likedByMe]="item.video.likedByMe" />
             <app-comment-button [count]="item.video.commentCount" (pressed)="toggleComments(item.video.id)" />
             <app-mute-button />
+            @if (item.video.isOwner) {
+              <app-owner-menu [videoId]="item.video.id" (edit)="startEdit(item.video.id)" (deleted)="onDeleted(item.video.id)" />
+            }
           </div>
 
           @if (openComments() === item.video.id) {
@@ -50,6 +53,17 @@
               <small>{{ reason }}</small>
             }
           </div>
+
+          <!-- A failed or stuck upload needs a way out too: the author can still edit or delete it. -->
+          @if (item.video.isOwner) {
+            <div class="actions">
+              <app-owner-menu [videoId]="item.video.id" (edit)="startEdit(item.video.id)" (deleted)="onDeleted(item.video.id)" />
+            </div>
+          }
+        }
+
+        @if (editing() === item.video.id) {
+          <app-edit-video-panel [video]="item.video" (closed)="editing.set(null)" (saved)="onSaved($event)" />
         }
 
         <div class="overlay">

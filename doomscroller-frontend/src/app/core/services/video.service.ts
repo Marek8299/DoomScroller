@@ -19,6 +19,16 @@ export class VideoService {
     return this.http.get<VideoItem[]>(`${this.base}/videos`, { params: { skip, take } });
   }
 
+  /** Owner only. Both fields are applied as given; a blank description clears it. */
+  update(videoId: string, title: string, description: string): Observable<VideoItem> {
+    return this.http.patch<VideoItem>(`${this.base}/videos/${videoId}`, { title, description });
+  }
+
+  /** Owner only. Removes the video, its comments and likes, and its files. */
+  delete(videoId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/videos/${videoId}`);
+  }
+
   /** Idempotent: liking an already-liked video just returns the current state. */
   like(videoId: string): Observable<LikeState> {
     return this.http.put<LikeState>(`${this.base}/videos/${videoId}/like`, null);

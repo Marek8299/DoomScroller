@@ -47,5 +47,29 @@ public class EfVideoRepository : IVideoRepository
         _db.Videos.CountAsync(
             v => v.AuthorId == authorId && (includeUnfinished || v.Status == RenditionStatus.Ready), ct);
 
-    public Task SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
+    public async Task DeleteAsync(VideoItem video, CancellationToken ct = default)
+    {
+        _db.Videos.Remove(video); // renditions are loaded, so EF deletes them; likes/comments cascade in the database
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone deleted it first: the end state is what we wanted.
+        }
+    }
+
+    public async Task SaveChangesAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // UPDATE/INSERT touched a row that no longer exists: the video was deleted under us.
+            throw new VideoGoneException(ex);
+        }
+    }
 }

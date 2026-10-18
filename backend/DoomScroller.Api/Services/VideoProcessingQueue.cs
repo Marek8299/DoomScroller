@@ -30,6 +30,7 @@ public class VideoProcessingWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IFfmpegService _ffmpeg;
     private readonly IVideoFingerprintService _fingerprint;
+    private readonly IMediaFileCleaner _cleaner;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<VideoProcessingWorker> _logger;
 
@@ -38,6 +39,7 @@ public class VideoProcessingWorker : BackgroundService
         IServiceScopeFactory scopeFactory,
         IFfmpegService ffmpeg,
         IVideoFingerprintService fingerprint,
+        IMediaFileCleaner cleaner,
         IWebHostEnvironment env,
         ILogger<VideoProcessingWorker> logger)
     {
@@ -45,6 +47,7 @@ public class VideoProcessingWorker : BackgroundService
         _scopeFactory = scopeFactory;
         _ffmpeg = ffmpeg;
         _fingerprint = fingerprint;
+        _cleaner = cleaner;
         _env = env;
         _logger = logger;
     }
@@ -53,60 +56,102 @@ public class VideoProcessingWorker : BackgroundService
     {
         await foreach (var videoId in _queue.ReadAllAsync(stoppingToken))
         {
-            // IVideoRepository wraps a DbContext, which isn't thread-safe and isn't meant
-            // to outlive a single unit of work - so each queued video gets its own scope,
-            // the same way a single HTTP request would.
-            using var scope = _scopeFactory.CreateScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
-
-            var video = await repository.GetAsync(videoId, stoppingToken);
-            if (video is null) continue;
-
             try
             {
-                video.Status = RenditionStatus.Processing;
-                await repository.SaveChangesAsync(stoppingToken);
-
-                video.Probe = await _ffmpeg.ProbeAsync(video.SourceFilePath, stoppingToken);
-
-                // A failed fingerprint must not fail the video itself - it just stays null.
-                try
-                {
-                    video.PerceptualHash = await _fingerprint.ComputePerceptualHashAsync(
-                        video.SourceFilePath, video.Probe.DurationSeconds, stoppingToken);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    _logger.LogWarning(ex, "Could not compute perceptual hash for video {VideoId}", videoId);
-                }
-
-                var mediaDir = Path.Combine(_env.ContentRootPath, "Storage", "media");
-                var renditions = await _ffmpeg.ConvertAllRenditionsAsync(
-                    video.SourceFilePath,
-                    video.Probe,
-                    video.Options,
-                    mediaDir,
-                    video.NormalizeVolume,
-                    ct: stoppingToken);
-
-                video.Renditions.AddRange(renditions);
-                video.Status = renditions.Any(r => r.Status == RenditionStatus.Ready)
-                    ? RenditionStatus.Ready
-                    : RenditionStatus.Failed;
-
-                if (video.Status == RenditionStatus.Failed)
-                {
-                    video.ErrorMessage = "All renditions failed to encode; see server logs.";
-                }
+                await ProcessAsync(videoId, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break; // shutting down
             }
             catch (Exception ex)
             {
-                video.Status = RenditionStatus.Failed;
-                video.ErrorMessage = ex.Message;
-                _logger.LogError(ex, "Processing failed for video {VideoId}", videoId);
+                // One bad video must never take the whole app down (an unhandled exception here
+                // would stop the host by default): log it and move on to the next one.
+                _logger.LogError(ex, "Unexpected error while processing video {VideoId}", videoId);
+            }
+        }
+    }
+
+    private async Task ProcessAsync(Guid videoId, CancellationToken ct)
+    {
+        // IVideoRepository wraps a DbContext, which isn't thread-safe and isn't meant
+        // to outlive a single unit of work - so each queued video gets its own scope,
+        // the same way a single HTTP request would.
+        using var scope = _scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
+
+        var video = await repository.GetAsync(videoId, ct);
+        if (video is null) return; // deleted while it was waiting in the queue
+
+        var sourcePath = video.SourceFilePath;
+        var producedFiles = new List<string>();
+
+        try
+        {
+            video.Status = RenditionStatus.Processing;
+            await repository.SaveChangesAsync(ct);
+
+            video.Probe = await _ffmpeg.ProbeAsync(video.SourceFilePath, ct);
+
+            // A failed fingerprint must not fail the video itself - it just stays null.
+            try
+            {
+                video.PerceptualHash = await _fingerprint.ComputePerceptualHashAsync(
+                    video.SourceFilePath, video.Probe.DurationSeconds, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not compute perceptual hash for video {VideoId}", videoId);
             }
 
-            await repository.SaveChangesAsync(stoppingToken);
+            var mediaDir = Path.Combine(_env.ContentRootPath, "Storage", "media");
+            var renditions = await _ffmpeg.ConvertAllRenditionsAsync(
+                video.SourceFilePath,
+                video.Probe,
+                video.Options,
+                mediaDir,
+                video.NormalizeVolume,
+                ct: ct);
+
+            producedFiles.AddRange(renditions.Select(r => r.FilePath));
+            video.Renditions.AddRange(renditions);
+            video.Status = renditions.Any(r => r.Status == RenditionStatus.Ready)
+                ? RenditionStatus.Ready
+                : RenditionStatus.Failed;
+
+            if (video.Status == RenditionStatus.Failed)
+            {
+                video.ErrorMessage = "All renditions failed to encode; see server logs.";
+            }
         }
+        catch (VideoGoneException)
+        {
+            Discard(videoId, producedFiles, sourcePath);
+            return;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            video.Status = RenditionStatus.Failed;
+            video.ErrorMessage = ex.Message;
+            _logger.LogError(ex, "Processing failed for video {VideoId}", videoId);
+        }
+
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (VideoGoneException)
+        {
+            // The owner deleted the video while it was encoding. The encode ran to the end (we don't
+            // interrupt ffmpeg), so throw its output away instead of leaving it on disk forever.
+            Discard(videoId, producedFiles, sourcePath);
+        }
+    }
+
+    private void Discard(Guid videoId, IEnumerable<string> producedFiles, string sourcePath)
+    {
+        _logger.LogInformation("Video {VideoId} was deleted while it was being processed; discarding its files", videoId);
+        _cleaner.DeleteFiles(producedFiles.Append(sourcePath));
     }
 }

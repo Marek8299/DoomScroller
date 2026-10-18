@@ -16,9 +16,15 @@ public interface IVideoRepository
     Task<int> CountByAuthorAsync(Guid authorId, bool includeUnfinished, CancellationToken ct = default);
 
     /// <summary>
+    /// Removes a video previously returned by this repository instance, including its renditions
+    /// (likes and comments go with it via cascading deletes). Not an error if it's already gone.
+    /// </summary>
+    Task DeleteAsync(VideoItem video, CancellationToken ct = default);
+
+    /// <summary>
     /// Persists changes made to an entity previously returned by this same repository
     /// instance (i.e. within the same DbContext/scope) - there's nothing to re-attach,
-    /// just flush the tracked changes.
+    /// just flush the tracked changes. Throws <see cref="VideoGoneException"/> if the video was deleted in the meantime.
     /// </summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 }

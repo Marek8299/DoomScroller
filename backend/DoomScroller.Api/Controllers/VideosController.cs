@@ -15,6 +15,7 @@ public class VideosController : ControllerBase
     private readonly IVideoRepository _repository;
     private readonly ILikeRepository _likes;
     private readonly IVideoPresenter _presenter;
+    private readonly IMediaFileCleaner _files;
     private readonly IVideoProcessingQueue _queue;
     private readonly IWebHostEnvironment _env;
     private readonly ConversionOptions _conversion;
@@ -29,6 +30,7 @@ public class VideosController : ControllerBase
         IVideoRepository repository,
         ILikeRepository likes,
         IVideoPresenter presenter,
+        IMediaFileCleaner files,
         IVideoProcessingQueue queue,
         IWebHostEnvironment env,
         IOptions<ConversionOptions> conversion,
@@ -37,6 +39,7 @@ public class VideosController : ControllerBase
         _repository = repository;
         _likes = likes;
         _presenter = presenter;
+        _files = files;
         _queue = queue;
         _env = env;
         _conversion = conversion.Value;
@@ -65,19 +68,9 @@ public class VideosController : ControllerBase
             return BadRequest($"Unsupported file extension '{extension}'.");
         }
 
-        var title = string.IsNullOrWhiteSpace(request.Title)
-            ? Path.GetFileNameWithoutExtension(file.FileName)
-            : request.Title.Trim();
-        if (title.Length > UploadVideoRequest.MaxTitleLength)
-        {
-            return BadRequest($"Title can be at most {UploadVideoRequest.MaxTitleLength} characters.");
-        }
-
-        var description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
-        if (description is not null && description.Length > UploadVideoRequest.MaxDescriptionLength)
-        {
-            return BadRequest($"Description can be at most {UploadVideoRequest.MaxDescriptionLength} characters.");
-        }
+        var (title, description, error) = VideoMetadataRules.Clean(
+            request.Title, request.Description, fallbackTitle: Path.GetFileNameWithoutExtension(file.FileName));
+        if (title is null) return BadRequest(error);
 
         var uploadsDir = Path.Combine(_env.ContentRootPath, "Storage", "uploads");
         Directory.CreateDirectory(uploadsDir);
@@ -139,6 +132,65 @@ public class VideosController : ControllerBase
         }
 
         return Ok(await _presenter.PresentAsync(video, viewerId, ct));
+    }
+
+    /// <summary>
+    /// Change a video's title and description (owner only). Both fields are applied as sent: a blank
+    /// description clears it. Works on unfinished videos too, since it never touches the encoding.
+    /// </summary>
+    [HttpPatch("{id:guid}")]
+    [Authorize]
+    public async Task<ActionResult<VideoDto>> Update(Guid id, UpdateVideoRequest request, CancellationToken ct)
+    {
+        var (video, denied) = await FindOwnedVideoAsync(id, ct);
+        if (video is null) return denied!;
+
+        var (title, description, error) = VideoMetadataRules.Clean(request.Title, request.Description);
+        if (title is null) return BadRequest(error);
+
+        video.Title = title;
+        video.Description = description;
+        await _repository.SaveChangesAsync(ct);
+
+        return Ok(await _presenter.PresentAsync(video, User.GetUserId(), ct));
+    }
+
+    /// <summary>
+    /// Delete a video and everything attached to it (owner only): its renditions, likes and
+    /// comments, and the files on disk. Allowed in any state, so a failed or stuck upload can be removed too.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var (video, denied) = await FindOwnedVideoAsync(id, ct);
+        if (video is null) return denied!;
+
+        // Collect the paths first: the entity is gone after the delete.
+        var files = video.Renditions.Select(r => (string?)r.FilePath).Append(video.SourceFilePath).ToList();
+
+        // Database first, files second. If the files can't be removed we're left with clutter on disk;
+        // the other way round could leave a video in the feed whose files are already gone.
+        await _repository.DeleteAsync(video, ct);
+        _files.DeleteFiles(files);
+
+        _logger.LogInformation("Deleted video {VideoId} and {Count} file(s)", id, files.Count);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Finds a video the caller owns. Otherwise says why not: a missing video, or someone else's
+    /// unfinished one (which isn't public), is 404; someone else's published one is 403.
+    /// </summary>
+    private async Task<(VideoItem? Video, ActionResult? Denied)> FindOwnedVideoAsync(Guid id, CancellationToken ct)
+    {
+        var video = await _repository.GetAsync(id, ct);
+        var viewerId = User.GetUserId();
+
+        if (video is null) return (null, NotFound());
+        if (video.AuthorId is not null && video.AuthorId == viewerId) return (video, null);
+
+        return (null, video.Status == RenditionStatus.Ready ? Forbid() : NotFound());
     }
 
     /// <summary>Like a video. Idempotent: liking it again changes nothing.</summary>

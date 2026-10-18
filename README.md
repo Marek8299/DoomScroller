@@ -235,6 +235,11 @@ Videos:
 - `GET /api/videos?skip=&take=` — feed of ready videos from everyone, newest first.
 - `GET /api/videos/{id}` — one video. Unfinished videos are only visible to their author (404 for
   everyone else).
+- `PATCH /api/videos/{id}` `{title, description}` — **owner only.** Edit the title (required,
+  max 200) and description (max 2000; blank clears it). Works in any state. 403 for someone
+  else's published video; 404 for a missing one or someone else's unfinished one.
+- `DELETE /api/videos/{id}` — **owner only.** Deletes the video, its comments and likes, and its
+  files. Allowed in any state, so a failed or stuck upload can be removed.
 - `GET /api/videos/{id}/comments?skip=&take=` — a video's comments, newest first (default 20, max
   50). Public. `canDelete` tells the viewer whether they may remove each one.
 - `POST /api/videos/{id}/comments` `{text}` — **requires sign-in.** Max 500 characters; limited to
@@ -325,7 +330,33 @@ like everything else about unfinished ones.
 
 Not built yet: replies/threads, editing, likes on comments, reporting, mentions, notifications.
 
-## 11. Known corners cut for "small clone" scope
+## 11. Editing and deleting videos
+
+The author gets a "..." button in the action column (also on their own "still processing"
+placeholders) with **Edit** and **Delete**.
+
+- **Edit** opens a sheet for the title and description only; the encoding is never touched.
+  Title/description limits live in one place, `Services/VideoMetadataRules.cs`, shared with upload.
+- **Delete** asks first (inline, Cancel focused, Escape backs out). Server side:
+  - the database delete comes first and the files second, so a failure can only leave a stray
+    file on disk, never a feed entry whose files are already gone;
+  - renditions are removed by EF; likes and comments go through the foreign keys' cascade;
+  - `MediaFileCleaner` removes the original upload and every rendition, and only ever touches
+    paths under the `Storage` folder (a path outside it is refused and logged).
+- **Deleting while it's encoding**: the worker notices (`VideoGoneException`), throws away what it
+  produced, and carries on. ffmpeg itself is not interrupted, so that encode still runs to the end
+  before its output is discarded. A video deleted while still queued is simply skipped.
+- **Worker hardening done along the way**: an unexpected error on one video is now logged and the
+  worker moves on; before, it could have stopped the whole app.
+- **In the feed**: the video disappears at once, the profile header's counts refresh, and a feed
+  refresh that was already in flight can't bring a deleted video back.
+- No migration was needed; the cascades were already part of the schema.
+
+Not built yet: restoring deleted videos (it is permanent), admin/moderator deletion of other
+people's videos, replacing the video file itself, requeueing videos left "Processing" by a server
+restart (they can at least be deleted now).
+
+## 12. Known corners cut for "small clone" scope
 
 - No likes/comments or thumbnails — the feed just autoplays each rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;

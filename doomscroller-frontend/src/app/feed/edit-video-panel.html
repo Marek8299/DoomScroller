@@ -1,0 +1,27 @@
+<form class="panel" role="dialog" aria-label="Edit video" [formGroup]="form" (ngSubmit)="save()">
+  <header>
+    <h2>Edit video</h2>
+    <button type="button" class="close" aria-label="Close" (click)="closed.emit()">&times;</button>
+  </header>
+
+  <div class="fields">
+    <label>
+      Title
+      <input type="text" formControlName="title" [attr.maxlength]="maxTitle" />
+    </label>
+
+    <label>
+      Description <span class="optional">(optional)</span>
+      <textarea formControlName="description" rows="4" [attr.maxlength]="maxDescription"></textarea>
+    </label>
+  </div>
+
+  @if (error(); as message) {
+    <p class="action-error" role="alert">{{ message }}</p>
+  }
+
+  <footer>
+    <button type="button" class="cancel" (click)="closed.emit()">Cancel</button>
+    <button type="submit" class="save" [disabled]="form.invalid || busy()">{{ busy() ? 'Saving…' : 'Save' }}</button>
+  </footer>
+</form>

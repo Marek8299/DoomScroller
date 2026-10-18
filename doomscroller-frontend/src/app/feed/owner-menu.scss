@@ -1,0 +1,111 @@
+:host {
+  position: relative; // the menu pops out to the left of the button
+  display: block;
+}
+
+.more {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.menu {
+  position: absolute;
+  right: 54px;
+  bottom: 0;
+  z-index: 4;
+  width: 240px;
+  padding: 6px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.9rem;
+  text-shadow: none;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: #2a2a2a;
+  }
+
+  &.danger {
+    color: #fe2c55;
+  }
+}
+
+.confirm {
+  padding: 8px 10px 10px;
+
+  p {
+    margin: 0 0 10px;
+    line-height: 1.35;
+  }
+
+  .buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  button {
+    border-radius: 14px;
+    padding: 6px 14px;
+    font: inherit;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+
+  .cancel {
+    background: none;
+    border: 1px solid #444;
+    color: #fff;
+  }
+
+  .confirm-delete {
+    background: #fe2c55;
+    border: 1px solid #fe2c55;
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.error {
+  margin: 6px 10px 4px;
+  color: #fe2c55;
+  font-size: 0.8rem;
+}

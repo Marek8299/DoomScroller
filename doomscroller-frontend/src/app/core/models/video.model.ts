@@ -39,6 +39,8 @@ export interface VideoItem {
   /** Whether the signed-in viewer has liked it (always false when signed out). */
   likedByMe: boolean;
   commentCount: number;
+  /** True when the signed-in viewer is this video's author (may edit/delete it). */
+  isOwner: boolean;
 }
 
 export interface CommentItem {

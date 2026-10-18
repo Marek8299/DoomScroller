@@ -1,0 +1,65 @@
+@use './sheet';
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px 6px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #ddd;
+
+  input,
+  textarea {
+    background: #1f1f1f;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px;
+    color: #fff;
+    font: inherit;
+    resize: vertical;
+  }
+
+  .optional {
+    color: #777;
+  }
+}
+
+footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 16px 16px;
+
+  button {
+    border-radius: 18px;
+    padding: 9px 20px;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .cancel {
+    background: none;
+    border: 1px solid #444;
+    color: #fff;
+  }
+
+  .save {
+    background: #fe2c55;
+    border: 1px solid #fe2c55;
+    color: #fff;
+    font-weight: 600;
+
+    &:disabled {
+      background: #444;
+      border-color: #444;
+      color: #888;
+      cursor: default;
+    }
+  }
+}

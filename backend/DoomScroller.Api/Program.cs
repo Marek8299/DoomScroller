@@ -75,6 +75,7 @@ builder.Services.AddScoped<IVideoPresenter, VideoPresenter>();
 builder.Services.AddDoomScrollerAuth();
 builder.Services.AddSingleton<IVideoProcessingQueue, VideoProcessingQueue>();
 builder.Services.AddSingleton<IFfmpegService, FfmpegService>();
+builder.Services.AddSingleton<IMediaFileCleaner, MediaFileCleaner>();
 builder.Services.AddSingleton<IVideoFingerprintService, VideoFingerprintService>();
 
 // --- Server-side configuration (appsettings.json / env vars) ---
