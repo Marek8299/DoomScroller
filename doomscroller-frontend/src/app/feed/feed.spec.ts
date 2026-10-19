@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { Router, provideRouter } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoItem } from '../core/models/video.model';
 import { AuthService } from '../core/services/auth.service';
@@ -28,6 +28,7 @@ describe('Feed', () => {
   let feedResponse: VideoItem[];
   const api = {
     getFeed: vi.fn(),
+    getById: vi.fn(),
     getUserVideos: vi.fn(),
     getProfile: vi.fn(),
     mediaUrl: (u: string) => `http://x${u}`,
@@ -135,5 +136,112 @@ describe('Feed', () => {
     const item = el.querySelector('.feed-item')!;
     expect(item.querySelector('.pending')).not.toBeNull();
     expect(item.querySelector('app-owner-menu')).not.toBeNull();
+  });
+
+  describe('shared links and the address bar', () => {
+    let navigate: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    });
+
+    const visible = (id: string) => (fixture.componentInstance as any).onInView(id);
+
+    it('moves the address to the very first video as soon as it is showing, so it can be copied right away', () => {
+      visible('a');
+      expect(navigate).toHaveBeenCalledWith(['/v', 'a'], { replaceUrl: true });
+    });
+
+    it('then follows the video you scroll to, without adding Back-button history', () => {
+      visible('a');
+      visible('b');
+      expect(navigate).toHaveBeenLastCalledWith(['/v', 'b'], { replaceUrl: true });
+
+      visible('c');
+      expect(navigate).toHaveBeenLastCalledWith(['/v', 'c'], { replaceUrl: true });
+      for (const call of navigate.mock.calls) {
+        expect(call[1]).toEqual({ replaceUrl: true });
+      }
+    });
+
+    it('does nothing when there are no videos to show', async () => {
+      feedResponse = [];
+      await flush(8000);
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('does not re-navigate to the address it is already on', () => {
+      fixture.componentRef.setInput('id', 'a');
+      visible('a');
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('never touches the address bar on an author page', async () => {
+      fixture.componentRef.setInput('username', 'someone');
+      api.getUserVideos.mockReturnValue(of(feedResponse));
+      await flush();
+
+      visible('a');
+      visible('b');
+      expect(navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('opening a shared link (/v/:id)', () => {
+    const open = async (id: string) => {
+      fixture = TestBed.createComponent(Feed);
+      fixture.componentRef.setInput('id', id);
+      await flush();
+      await flush();
+      el = fixture.nativeElement;
+    };
+
+    it('puts the shared video first and does not repeat it further down', async () => {
+      api.getById.mockReturnValue(of(video('b')));
+      await open('b');
+
+      expect(api.getById).toHaveBeenCalledWith('b');
+      expect(titles()).toEqual(['Title b', 'Title a', 'Title c']);
+      expect(el.querySelector('.notice')).toBeNull();
+    });
+
+    it('shows the shared video even if it is not in the first page of the feed', async () => {
+      api.getById.mockReturnValue(of(video('old')));
+      await open('old');
+      expect(titles()).toEqual(['Title old', 'Title a', 'Title b', 'Title c']);
+    });
+
+    it('explains a link to a deleted or private video, and still shows the feed', async () => {
+      api.getById.mockReturnValue(throwError(() => ({ status: 404 })));
+      await open('gone');
+
+      expect(el.querySelector('.notice')!.textContent).toContain("isn't available");
+      expect(titles()).toEqual(['Title a', 'Title b', 'Title c']);
+    });
+
+    it('treats any other failure as a real error', async () => {
+      api.getById.mockReturnValue(throwError(() => ({ status: 500 })));
+      await open('x');
+      expect(el.querySelector('.status.error')).not.toBeNull();
+    });
+
+    it('does not reload the feed when the address bar moves to another video as you scroll', async () => {
+      api.getById.mockReturnValue(of(video('b')));
+      await open('b');
+      const loads = api.getFeed.mock.calls.length;
+
+      fixture.componentRef.setInput('id', 'c'); // what the router does after our replaceUrl navigation
+      await flush();
+
+      expect(api.getFeed.mock.calls.length).toBe(loads);
+      expect(api.getById).toHaveBeenCalledTimes(1);
+      expect(titles()).toEqual(['Title b', 'Title a', 'Title c']);
+    });
+
+    it('offers a share button on every playable video', async () => {
+      api.getById.mockReturnValue(of(video('b')));
+      await open('b');
+      expect(el.querySelectorAll('app-share-button')).toHaveLength(3);
+    });
   });
 });

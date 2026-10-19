@@ -6,6 +6,10 @@
   </div>
 }
 
+@if (notice(); as message) {
+  <div class="notice" role="status">{{ message }}</div>
+}
+
 @if (loading()) {
   <div class="status">Loading…</div>
 } @else if (error(); as message) {
@@ -24,13 +28,14 @@
     }
 
     @for (item of items(); track item.video.id) {
-      <section class="feed-item">
+      <section class="feed-item" (appInView)="onInView(item.video.id)">
         @if (item.src; as src) {
           <app-video-player [src]="src" />
 
           <div class="actions">
             <app-like-button [videoId]="item.video.id" [count]="item.video.likeCount" [likedByMe]="item.video.likedByMe" />
             <app-comment-button [count]="item.video.commentCount" (pressed)="toggleComments(item.video.id)" />
+            <app-share-button [video]="item.video" />
             <app-mute-button />
             @if (item.video.isOwner) {
               <app-owner-menu [videoId]="item.video.id" (edit)="startEdit(item.video.id)" (deleted)="onDeleted(item.video.id)" />

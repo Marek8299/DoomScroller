@@ -1,33 +1,47 @@
-import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
-import { EMPTY, Observable, catchError, of, switchMap, tap, timer } from 'rxjs';
+import { Router, RouterLink } from '@angular/router';
+import { EMPTY, Observable, catchError, forkJoin, map, of, switchMap, tap, throwError, timer } from 'rxjs';
 import { VideoService } from '../core/services/video.service';
 import { VideoItem } from '../core/models/video.model';
 import { CommentButton } from './comment-button';
 import { CommentsPanel } from './comments-panel';
 import { EditVideoPanel } from './edit-video-panel';
+import { InView } from './in-view';
 import { LikeButton } from './like-button';
 import { MuteButton } from './mute-button';
 import { OwnerMenu } from './owner-menu';
+import { ShareButton } from './share-button';
 import { VideoPlayer } from './video-player';
 
 /**
  * The scrolling video feed. At "/" it shows everyone's videos; at "/u/:username" the same
- * component shows one author's videos (the router binds :username to the `username` input).
+ * component shows one author's videos; at "/v/:id" (a shared link) it opens on that video and
+ * carries on with the normal feed below it. The router binds the URL parts to the inputs.
  */
 @Component({
   selector: 'app-feed',
-  imports: [RouterLink, VideoPlayer, LikeButton, CommentButton, CommentsPanel, EditVideoPanel, OwnerMenu, MuteButton],
+  imports: [RouterLink, VideoPlayer, InView, LikeButton, CommentButton, ShareButton, CommentsPanel, EditVideoPanel, OwnerMenu, MuteButton],
   templateUrl: './feed.html',
   styleUrl: './feed.scss'
 })
 export class Feed {
   private readonly videoService = inject(VideoService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
 
   /** Set on author pages, undefined on the home feed. */
   readonly username = input<string>();
+
+  /**
+   * Set at "/v/:id": the video a shared link points at, shown first. Only its value when the feed
+   * *loads* counts. As you scroll, the address bar is updated to the video in view, which changes
+   * this input but must not reload the feed.
+   */
+  readonly videoId = input<string | undefined>(undefined, { alias: 'id' });
+
+  /** Why a shared link didn't open its video (deleted, or never public), shown as a small notice. */
+  protected readonly notice = signal<string | undefined>(undefined);
 
   protected readonly videos = signal<VideoItem[]>([]);
   protected readonly loading = signal(true);
@@ -66,17 +80,18 @@ export class Feed {
   constructor() {
     // One pipeline for: first load, 8s polling (so new uploads appear once processed), and
     // switching between feeds. switchMap cancels the old feed's requests when the page changes.
-    toObservable(this.username)
+    toObservable(computed(() => ({ name: this.username(), pinnedId: untracked(this.videoId) })))
       .pipe(
         tap(() => {
           this.loading.set(true);
           this.error.set(undefined);
+          this.notice.set(undefined);
           this.videos.set([]);
         }),
-        switchMap((name) =>
+        switchMap(({ name, pinnedId }) =>
           timer(0, 8000).pipe(
             switchMap(() =>
-              this.fetch(name).pipe(
+              this.fetch(name, pinnedId).pipe(
                 catchError((err) => {
                   this.error.set(
                     err?.status === 404
@@ -128,8 +143,35 @@ export class Feed {
     this.videos.update((list) => list.map((v) => (v.id === videoId ? { ...v, commentCount: count } : v)));
   }
 
-  private fetch(username: string | undefined): Observable<VideoItem[]> {
-    return username ? this.videoService.getUserVideos(username, 0, 20) : this.videoService.getFeed(0, 20);
+  /**
+   * The address bar follows the video you're watching, starting with the very first one, so copying
+   * it always shares the right video. Only on the main feed: author pages keep their own address.
+   */
+  protected onInView(videoId: string): void {
+    if (this.username()) return;
+
+    if (this.videoId() !== videoId) {
+      // replaceUrl: moving between videos must not fill the browser's Back history.
+      void this.router.navigate(['/v', videoId], { replaceUrl: true });
+    }
+  }
+
+  private fetch(username: string | undefined, pinnedId: string | undefined): Observable<VideoItem[]> {
+    if (username) return this.videoService.getUserVideos(username, 0, 20);
+    if (!pinnedId) return this.videoService.getFeed(0, 20);
+
+    // A shared link: that video first, then the regular feed (without a second copy of it).
+    return forkJoin({
+      pinned: this.videoService.getById(pinnedId).pipe(
+        catchError((err) => (err?.status === 404 ? of(null) : throwError(() => err)))
+      ),
+      feed: this.videoService.getFeed(0, 20)
+    }).pipe(
+      tap(({ pinned }) =>
+        this.notice.set(pinned ? undefined : "That video isn't available. It may have been deleted.")
+      ),
+      map(({ pinned, feed }) => (pinned ? [pinned, ...feed.filter((v) => v.id !== pinned.id)] : feed))
+    );
   }
 
   /** Picks the smallest ready rendition >= 720p if one exists, else the best available. */

@@ -124,3 +124,19 @@
   align-items: center;
   gap: 18px;
 }
+
+.notice {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  max-width: 90vw;
+  padding: 8px 16px;
+  border-radius: 16px;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid #333;
+  color: #fff;
+  font-size: 0.85rem;
+  text-align: center;
+}

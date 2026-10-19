@@ -356,7 +356,37 @@ Not built yet: restoring deleted videos (it is permanent), admin/moderator delet
 people's videos, replacing the video file itself, requeueing videos left "Processing" by a server
 restart (they can at least be deleted now).
 
-## 12. Known corners cut for "small clone" scope
+## 12. Sharing
+
+Every video has its own address, `/v/<id>`, and there are two ways to share it.
+
+- **From the address bar.** On the main feed the address follows the video you're watching: scroll
+  and it becomes `/v/<id>` of the one in view (`replaceUrl`, so the Back button isn't filled with
+  every video you passed). Merely opening the site leaves `/` alone until you move on from the first
+  video. Author pages keep their own address (`/u/name`).
+- **The share button** (right-hand column). Where the browser has a native share menu (phones,
+  and some desktop browsers) it opens that, with the title, a short description and the link. If
+  it doesn't, or sharing fails, it copies the link and shows a "Link copied to clipboard" notice
+  (or "Couldn't copy the link"). Closing the share menu without choosing is not treated as a failure.
+  Copying works on plain-http pages too (old select-and-copy fallback), the native menu and the
+  modern clipboard API need https or localhost.
+
+Opening a shared link shows that video first and the normal feed continues below it (it isn't
+repeated further down). If the video was deleted or isn't public, a small notice says so and the
+feed still loads. Technically `/` and `/v/:id` are one route (`feed-url-matcher.ts`), so moving
+between them while scrolling reuses the page instead of rebuilding and reloading it.
+
+Things to know:
+- **Link previews**: apps like WhatsApp or Discord build their preview card from the page's HTML,
+  but this is a single-page app whose HTML is the same for every address, so pasted links show the
+  generic site preview, not the video. Per-video previews need server-side rendering or a small
+  backend-served share page with Open Graph tags; not built.
+- **Hosting**: deep links like `/v/<id>` and `/u/name` only work on a static host that serves
+  `index.html` for unknown paths (the Angular dev server does this already).
+- Videos that aren't public yet can only be opened by their author, so sharing a still-processing
+  video gives the recipient the "isn't available" notice until it's finished.
+
+## 13. Known corners cut for "small clone" scope
 
 - No likes/comments or thumbnails — the feed just autoplays each rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;
