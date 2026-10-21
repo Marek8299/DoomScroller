@@ -31,7 +31,8 @@ public class VideoProcessingWorker : BackgroundService
     private readonly IFfmpegService _ffmpeg;
     private readonly IVideoFingerprintService _fingerprint;
     private readonly IMediaFileCleaner _cleaner;
-    private readonly IWebHostEnvironment _env;
+    private readonly StoragePaths _storage;
+    private readonly IThumbnailService _thumbnails;
     private readonly ILogger<VideoProcessingWorker> _logger;
 
     public VideoProcessingWorker(
@@ -40,7 +41,8 @@ public class VideoProcessingWorker : BackgroundService
         IFfmpegService ffmpeg,
         IVideoFingerprintService fingerprint,
         IMediaFileCleaner cleaner,
-        IWebHostEnvironment env,
+        IThumbnailService thumbnails,
+        StoragePaths storage,
         ILogger<VideoProcessingWorker> logger)
     {
         _queue = queue;
@@ -48,7 +50,8 @@ public class VideoProcessingWorker : BackgroundService
         _ffmpeg = ffmpeg;
         _fingerprint = fingerprint;
         _cleaner = cleaner;
-        _env = env;
+        _storage = storage;
+        _thumbnails = thumbnails;
         _logger = logger;
     }
 
@@ -105,7 +108,19 @@ public class VideoProcessingWorker : BackgroundService
                 _logger.LogWarning(ex, "Could not compute perceptual hash for video {VideoId}", videoId);
             }
 
-            var mediaDir = Path.Combine(_env.ContentRootPath, "Storage", "media");
+            // The preview image for the profile grid. Like the fingerprint, optional: no thumbnail never fails a video.
+            try
+            {
+                video.ThumbnailFileName = await _thumbnails.CreateAsync(
+                    video.Id, video.SourceFilePath, video.Probe.DurationSeconds, ct);
+                producedFiles.Add(Path.Combine(_storage.Thumbs, video.ThumbnailFileName));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not create a thumbnail for video {VideoId}", videoId);
+            }
+
+            var mediaDir = _storage.Media;
             var renditions = await _ffmpeg.ConvertAllRenditionsAsync(
                 video.SourceFilePath,
                 video.Probe,

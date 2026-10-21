@@ -19,6 +19,19 @@ describe('feedUrlMatcher', () => {
     expect(result?.posParams?.['id'].path).toBe('abc-123');
   });
 
+  it('matches /u/:username/v/:id (a video opened from a profile) and captures both parts', () => {
+    const result = match('u', 'marek', 'v', 'abc-123');
+    expect(result?.consumed).toHaveLength(4);
+    expect(result?.posParams?.['username'].path).toBe('marek');
+    expect(result?.posParams?.['id'].path).toBe('abc-123');
+  });
+
+  it('leaves a bare /u/:username to the profile page', () => {
+    expect(match('u', 'marek')).toBeNull();
+    expect(match('u', 'marek', 'v')).toBeNull();
+    expect(match('u', 'marek', 'videos', 'abc')).toBeNull();
+  });
+
   it('matches nothing else', () => {
     expect(match('v')).toBeNull(); // no id
     expect(match('v', 'a', 'b')).toBeNull(); // too deep

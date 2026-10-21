@@ -1,0 +1,53 @@
+<div class="backdrop" (click)="closed.emit()">
+  <form
+    class="dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Edit profile"
+    tabindex="-1"
+    [formGroup]="form"
+    (click)="$event.stopPropagation()"
+    (ngSubmit)="save()"
+  >
+    <header>
+      <h2>Edit profile</h2>
+      <button type="button" class="close" aria-label="Close" (click)="closed.emit()">&times;</button>
+    </header>
+
+    <section class="photo">
+      <app-avatar [username]="profile().username" [url]="avatarUrl()" [size]="88" />
+      <div class="photo-actions">
+        <label class="button" [class.disabled]="avatarBusy()">
+          {{ avatarBusy() ? 'Working…' : 'Change photo' }}
+          <input type="file" accept="image/jpeg,image/png,image/webp" [disabled]="avatarBusy()" (change)="onFileChosen($event)" />
+        </label>
+        @if (avatarUrl()) {
+          <button type="button" class="link" [disabled]="avatarBusy()" (click)="removeAvatar()">Remove photo</button>
+        }
+      </div>
+    </section>
+
+    <label class="field">
+      Bio
+      <textarea formControlName="bio" rows="4" [attr.maxlength]="maxBio" placeholder="Tell people about yourself"></textarea>
+      <small>{{ maxBio - form.controls.bio.value.length }} characters left</small>
+    </label>
+
+    <label class="switch">
+      <input type="checkbox" formControlName="likesPublic" />
+      <span>
+        Show what I've liked on my profile
+        <small>Off by default: only you can see your Liked tab unless you turn this on.</small>
+      </span>
+    </label>
+
+    @if (error(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+
+    <footer>
+      <button type="button" class="cancel" (click)="closed.emit()">Cancel</button>
+      <button type="submit" class="save" [disabled]="form.invalid || saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+    </footer>
+  </form>
+</div>

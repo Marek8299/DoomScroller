@@ -23,6 +23,8 @@ public abstract class DoomScrollerDbContext : DbContext
     public DbSet<VideoItem> Videos => Set<VideoItem>();
     public DbSet<VideoLike> Likes => Set<VideoLike>();
     public DbSet<VideoComment> Comments => Set<VideoComment>();
+    public DbSet<CommentLike> CommentLikes => Set<CommentLike>();
+    public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<VideoRendition> Renditions => Set<VideoRendition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -36,6 +38,8 @@ public abstract class DoomScrollerDbContext : DbContext
             user.Property(u => u.Username).HasMaxLength(30).IsRequired();
             user.Property(u => u.NormalizedUsername).HasMaxLength(30).IsRequired();
             user.Property(u => u.PasswordHash).HasMaxLength(256).IsRequired();
+            user.Property(u => u.Bio).HasMaxLength(ProfileRules.MaxBioLength);
+            user.Property(u => u.AvatarFileName).HasMaxLength(100);
 
             // Case-insensitive uniqueness: "Marek" and "marek" are the same account name.
             user.HasIndex(u => u.NormalizedUsername).IsUnique();
@@ -54,6 +58,7 @@ public abstract class DoomScrollerDbContext : DbContext
             video.Property(v => v.SourceFilePath).HasMaxLength(1024).IsRequired();
             video.Property(v => v.Description).HasMaxLength(VideoMetadataRules.MaxDescriptionLength);
             video.Property(v => v.PerceptualHash).HasMaxLength(256);
+            video.Property(v => v.ThumbnailFileName).HasMaxLength(100);
             video.Property(v => v.Status).HasConversion<string>().HasMaxLength(20);
             video.Property(v => v.ErrorMessage).HasMaxLength(2000);
 
@@ -116,6 +121,22 @@ public abstract class DoomScrollerDbContext : DbContext
 
             // Serves "this video's comments, newest first" and the per-video counts.
             comment.HasIndex(c => new { c.VideoId, c.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<CommentLike>(like =>
+        {
+            like.ToTable("CommentLikes");
+            like.HasKey(l => new { l.CommentId, l.UserId }); // one like per user per comment, enforced by the database
+            like.HasOne<VideoComment>().WithMany().HasForeignKey(l => l.CommentId).OnDelete(DeleteBehavior.Cascade);
+            like.HasOne<AppUser>().WithMany().HasForeignKey(l => l.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Follow>(follow =>
+        {
+            follow.ToTable("Follows");
+            follow.HasKey(f => new { f.FollowerId, f.FolloweeId }); // can't follow the same person twice
+            follow.HasOne<AppUser>().WithMany().HasForeignKey(f => f.FollowerId).OnDelete(DeleteBehavior.Cascade);
+            follow.HasOne<AppUser>().WithMany().HasForeignKey(f => f.FolloweeId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<VideoRendition>(rendition =>

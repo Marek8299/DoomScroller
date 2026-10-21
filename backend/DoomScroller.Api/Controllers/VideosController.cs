@@ -17,7 +17,7 @@ public class VideosController : ControllerBase
     private readonly IVideoPresenter _presenter;
     private readonly IMediaFileCleaner _files;
     private readonly IVideoProcessingQueue _queue;
-    private readonly IWebHostEnvironment _env;
+    private readonly StoragePaths _storage;
     private readonly ConversionOptions _conversion;
     private readonly ILogger<VideosController> _logger;
 
@@ -32,7 +32,7 @@ public class VideosController : ControllerBase
         IVideoPresenter presenter,
         IMediaFileCleaner files,
         IVideoProcessingQueue queue,
-        IWebHostEnvironment env,
+        StoragePaths storage,
         IOptions<ConversionOptions> conversion,
         ILogger<VideosController> logger)
     {
@@ -41,7 +41,7 @@ public class VideosController : ControllerBase
         _presenter = presenter;
         _files = files;
         _queue = queue;
-        _env = env;
+        _storage = storage;
         _conversion = conversion.Value;
         _logger = logger;
     }
@@ -72,8 +72,7 @@ public class VideosController : ControllerBase
             request.Title, request.Description, fallbackTitle: Path.GetFileNameWithoutExtension(file.FileName));
         if (title is null) return BadRequest(error);
 
-        var uploadsDir = Path.Combine(_env.ContentRootPath, "Storage", "uploads");
-        Directory.CreateDirectory(uploadsDir);
+        Directory.CreateDirectory(_storage.Uploads);
 
         var video = new VideoItem
         {
@@ -82,7 +81,7 @@ public class VideosController : ControllerBase
             AuthorId = User.GetUserId(),
             NormalizeVolume = request.NormalizeVolume,
             OriginalFileName = file.FileName,
-            SourceFilePath = Path.Combine(uploadsDir, $"{Guid.NewGuid()}{extension}"),
+            SourceFilePath = Path.Combine(_storage.Uploads, $"{Guid.NewGuid()}{extension}"),
             // Snapshot of the server config at upload time, so a later config change doesn't
             // rewrite history for videos that are already queued or encoded.
             Options = _conversion.Clone()
@@ -168,6 +167,7 @@ public class VideosController : ControllerBase
 
         // Collect the paths first: the entity is gone after the delete.
         var files = video.Renditions.Select(r => (string?)r.FilePath).Append(video.SourceFilePath).ToList();
+        if (video.ThumbnailFileName is not null) files.Add(Path.Combine(_storage.Thumbs, video.ThumbnailFileName));
 
         // Database first, files second. If the files can't be removed we're left with clutter on disk;
         // the other way round could leave a video in the feed whose files are already gone.

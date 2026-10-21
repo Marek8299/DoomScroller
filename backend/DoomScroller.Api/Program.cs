@@ -71,11 +71,15 @@ builder.Services.AddScoped<IVideoRepository, EfVideoRepository>();
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<ILikeRepository, EfLikeRepository>();
 builder.Services.AddScoped<ICommentRepository, EfCommentRepository>();
+builder.Services.AddScoped<IFollowRepository, EfFollowRepository>();
 builder.Services.AddScoped<IVideoPresenter, VideoPresenter>();
 builder.Services.AddDoomScrollerAuth();
 builder.Services.AddSingleton<IVideoProcessingQueue, VideoProcessingQueue>();
 builder.Services.AddSingleton<IFfmpegService, FfmpegService>();
+builder.Services.AddSingleton<StoragePaths>();
 builder.Services.AddSingleton<IMediaFileCleaner, MediaFileCleaner>();
+builder.Services.AddSingleton<IAvatarService, AvatarService>();
+builder.Services.AddSingleton<IThumbnailService, ThumbnailService>();
 builder.Services.AddSingleton<IVideoFingerprintService, VideoFingerprintService>();
 
 // --- Server-side configuration (appsettings.json / env vars) ---
@@ -93,10 +97,8 @@ builder.Services.AddHostedService<VideoProcessingWorker>();
 var app = builder.Build();
 
 // Make sure the storage folders exist before anything tries to write into them.
-var storageRoot = Path.Combine(app.Environment.ContentRootPath, "Storage");
-Directory.CreateDirectory(Path.Combine(storageRoot, "uploads"));
-var mediaDir = Path.Combine(storageRoot, "media");
-Directory.CreateDirectory(mediaDir);
+var storage = app.Services.GetRequiredService<StoragePaths>();
+storage.EnsureCreated();
 
 // Apply any pending migrations for whichever provider is active. Fine for a small app;
 // for a real deployment you'd more likely run `dotnet ef database update` as a separate
@@ -114,11 +116,23 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(CorsPolicy);
 
-// Serve transcoded renditions straight off disk at /media/<renditionId>.<ext>
+// Files the API serves straight off disk: renditions, video thumbnails and profile pictures.
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(mediaDir),
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(storage.Media),
     RequestPath = "/media"
+});
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(storage.Thumbs),
+    RequestPath = "/thumbs"
+});
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(storage.Avatars),
+    RequestPath = "/avatars",
+    // A new picture always gets a new file name, so a given URL's content never changes: cache it for good.
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable"
 });
 
 // Authentication first: the per-user comment rate limit needs to know who the caller is.

@@ -27,6 +27,9 @@ public class VideoItem
     public RenditionStatus Status { get; set; } = RenditionStatus.Queued;
     public string? ErrorMessage { get; set; }
 
+    /// <summary>File name (not path) of the preview image in Storage/thumbs; null if it couldn't be made (or the video predates thumbnails).</summary>
+    public string? ThumbnailFileName { get; set; }
+
     public VideoProbeResult? Probe { get; set; }
 
     /// <summary>

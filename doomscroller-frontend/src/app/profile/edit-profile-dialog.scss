@@ -1,0 +1,171 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end; // a bottom sheet on phones...
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+
+  @media (min-width: 560px) {
+    align-items: center; // ...a centred dialog on larger screens
+  }
+}
+
+.dialog {
+  width: 100%;
+  max-width: 460px;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  background: #141414;
+  color: #fff;
+  border-radius: 16px 16px 0 0;
+  outline: none;
+
+  @media (min-width: 560px) {
+    border-radius: 16px;
+  }
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #262626;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+.close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.photo {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+}
+
+.photo-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid #555;
+  border-radius: 18px;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &.disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  input {
+    display: none;
+  }
+}
+
+.link {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #fe2c55;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 18px 14px;
+  font-size: 0.85rem;
+  color: #ddd;
+
+  textarea {
+    resize: vertical;
+    padding: 10px;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #fff;
+    font: inherit;
+  }
+
+  small {
+    color: #777;
+  }
+}
+
+.switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px 18px 14px;
+  font-size: 0.9rem;
+
+  small {
+    display: block;
+    margin-top: 2px;
+    color: #777;
+  }
+}
+
+.error {
+  margin: 0;
+  padding: 0 18px 10px;
+  color: #fe2c55;
+  font-size: 0.85rem;
+}
+
+footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 18px 14px;
+
+  button {
+    padding: 9px 22px;
+    border-radius: 18px;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .cancel {
+    background: none;
+    border: 1px solid #444;
+    color: #fff;
+  }
+
+  .save {
+    background: #fe2c55;
+    border: 1px solid #fe2c55;
+    color: #fff;
+    font-weight: 600;
+
+    &:disabled {
+      background: #444;
+      border-color: #444;
+      color: #888;
+      cursor: default;
+    }
+  }
+}

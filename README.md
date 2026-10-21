@@ -251,12 +251,24 @@ Videos:
   (404 otherwise).
 
 Authors:
-- `GET /api/users/{username}` — `{username, createdAtUtc, videoCount, likeCount}` (likes received
-  across their finished videos).
+- `GET /api/users/{username}` — the profile: `username, bio, avatarUrl, followerCount, isFollowing,
+  isSelf, videoCount, likeCount (likes received), likesVisible, likesPublic`.
 - `GET /api/users/{username}/videos?skip=&take=` — that author's videos, newest first. Visitors
   see finished videos; the author also sees their own queued/processing/failed uploads.
+- `GET /api/users/{username}/comments?skip=&take=` — comments they've posted (on finished
+  videos), newest first, each with the video it's on.
+- `GET /api/users/{username}/likes?skip=&take=` — what they've liked, videos and comments mixed,
+  newest like first. **403 unless it's their own page or they've made their likes public.**
+- `PUT /api/users/{username}/follow` / `DELETE ...` — **require sign-in.** Follow / unfollow;
+  both idempotent; return `{followerCount, following}`. 400 if you try to follow yourself.
+- `PATCH /api/me/profile` `{bio, likesPublic?}` — **require sign-in.** Bio max 200 characters (blank
+  clears it). `PUT /api/me/avatar` (multipart `file`: JPEG/PNG/WebP, max 5 MB) and
+  `DELETE /api/me/avatar` change the profile picture.
+- `PUT /api/videos/{id}/comments/{commentId}/like` / `DELETE ...` — **require sign-in.** Like /
+  unlike a comment; idempotent; return `{likeCount, liked}`.
 
-`GET /media/{renditionId}.{ext}` — static file serving of a transcoded rendition.
+`GET /media/{renditionId}.{ext}`, `GET /thumbs/{file}`, `GET /avatars/{file}` — static files: transcoded
+renditions, video thumbnails and profile pictures.
 
 Responses are DTOs (`Contracts/`), never entities, so nothing like a password hash or a server
 file path can leak.
@@ -361,9 +373,11 @@ restart (they can at least be deleted now).
 Every video has its own address, `/v/<id>`, and there are two ways to share it.
 
 - **From the address bar.** On the main feed the address follows the video you're watching: scroll
-  and it becomes `/v/<id>` of the one in view (`replaceUrl`, so the Back button isn't filled with
-  every video you passed). Merely opening the site leaves `/` alone until you move on from the first
-  video. Author pages keep their own address (`/u/name`).
+  and it becomes `/v/<id>` of the one in view, starting with the very first video as soon as it
+  shows (`replaceUrl`, so the Back button isn't filled with every video you passed). One
+  consequence: reloading the page keeps you on that video, rather than going back to the newest.
+  When you open a video from someone's profile, the address keeps that context
+  (`/u/name/v/<id>`).
 - **The share button** (right-hand column). Where the browser has a native share menu (phones,
   and some desktop browsers) it opens that, with the title, a short description and the link. If
   it doesn't, or sharing fails, it copies the link and shows a "Link copied to clipboard" notice
@@ -386,7 +400,52 @@ Things to know:
 - Videos that aren't public yet can only be opened by their author, so sharing a still-processing
   video gives the recipient the "isn't available" notice until it's finished.
 
-## 13. Known corners cut for "small clone" scope
+## 13. Profiles
+
+`/u/<username>` is a proper profile page: picture, name, follower count, bio, a large **Follow** button
+under the bio (it's **Edit profile** on your own page), and three tabs.
+
+- **Videos**: a grid of thumbnails. Opening one starts the feed on that video and carries on with
+  that author's videos (`/u/name/v/id`). On your own page it also shows your unfinished uploads,
+  badged "Processing"/"Failed".
+- **Comments**: comments they've posted, each with the video it's on. Display only for now (no
+  links), as agreed.
+- **Liked**: videos *and* comments they've liked, in one list ordered by when they were liked,
+  newest first. Because that needs liking comments, **comments can now be liked** too (a heart beside
+  each comment in the feed's comment sheet).
+
+Tabs load the first time you open them, in pages with "Load more". The Liked list is assembled by
+taking the newest `skip + take` likes of each kind and merging them by like time, which gives the
+right page however videos and comments interleave.
+
+**Liked is private by default.** What someone likes is more private than what they post, so only the
+owner sees that tab unless they switch on "Show what I've liked on my profile" in Edit profile. The
+server enforces it (403), the UI just hides the tab. Say if you'd prefer public by default.
+
+**Following**: one row per (follower, followee) with a composite key, so a double follow is impossible
+at the database level; follow/unfollow are idempotent; you can't follow yourself; the button updates
+instantly and rolls back on failure, and signed-out visitors are sent to log in.
+
+**Profile pictures** are processed with ffmpeg (already a dependency): the upload is identified by its
+first bytes (JPEG, PNG or WebP; the file name and Content-Type header are ignored), capped at 5 MB and
+6000 px a side, centre-cropped to a 256x256 JPEG and stripped of all metadata, so camera details and
+GPS coordinates never reach the server's copy. ffmpeg is told to read only local files, so a crafted
+file can't make it fetch anything. Every change gets a new file name (so pictures are cached forever
+and the old file is deleted). Uploads are limited to 10/minute per user. People without a picture get
+their initial on a colour derived from their name.
+
+**Video thumbnails** are grabbed by the worker when a video is processed (a frame about a second in,
+360 px wide) and deleted with the video. A thumbnail that fails never fails the video. Videos uploaded
+before this existed have none and show a placeholder; there is no backfill job yet.
+
+Migration: `AddProfiles` (bio, avatar and thumbnail file names, the liked-tab setting, and the
+`Follows` and `CommentLikes` tables).
+
+Not built yet: followers/following lists, a "following" count, avatars next to names in the feed and
+comments, clicking a comment to jump to its video (planned), a profile-visibility or block feature,
+thumbnail backfill for old videos.
+
+## 14. Known corners cut for "small clone" scope
 
 - No likes/comments or thumbnails — the feed just autoplays each rendition's `<video>` tag.
 - No CDN/streaming protocol (HLS/DASH) — renditions are plain progressive MP4/MKV files;

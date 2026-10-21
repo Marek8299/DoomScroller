@@ -14,6 +14,8 @@ const comment = (id: string, over: Partial<CommentItem> = {}): CommentItem => ({
   createdAtUtc: new Date().toISOString(),
   author: { username: `user_${id}` },
   canDelete: false,
+  likeCount: 0,
+  likedByMe: false,
   ...over
 });
 

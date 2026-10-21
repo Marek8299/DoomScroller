@@ -23,7 +23,18 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .ValueGeneratedNever()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AvatarFileName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Bio")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("LikesPublic")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("NormalizedUsername")
@@ -88,6 +99,10 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ThumbnailFileName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
@@ -104,6 +119,42 @@ namespace DoomScroller.Api.Migrations.Sqlite
                     b.HasIndex("UploadedAtUtc");
 
                     b.ToTable("Videos");
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.CommentLike", b =>
+                {
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("CommentId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CommentLikes");
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.Follow", b =>
+                {
+                    b.Property<Guid>("FollowerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("FolloweeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("FollowerId", "FolloweeId");
+
+                    b.HasIndex("FolloweeId");
+
+                    b.ToTable("Follows");
                 });
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoComment", b =>
@@ -293,6 +344,36 @@ namespace DoomScroller.Api.Migrations.Sqlite
                         .IsRequired();
 
                     b.Navigation("Probe");
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.CommentLike", b =>
+                {
+                    b.HasOne("DoomScroller.Api.Models.VideoComment", null)
+                        .WithMany()
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DoomScroller.Api.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DoomScroller.Api.Models.Follow", b =>
+                {
+                    b.HasOne("DoomScroller.Api.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("FolloweeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DoomScroller.Api.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("FollowerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DoomScroller.Api.Models.VideoComment", b =>

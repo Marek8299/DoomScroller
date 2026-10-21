@@ -1,11 +1,3 @@
-@if (profile(); as p) {
-  <div class="profile-banner">
-    <strong>&#64;{{ p.username }}</strong>
-    <span>{{ p.videoCount }} {{ p.videoCount === 1 ? 'video' : 'videos' }}</span>
-    <span>{{ p.likeCount }} {{ p.likeCount === 1 ? 'like' : 'likes' }}</span>
-  </div>
-}
-
 @if (notice(); as message) {
   <div class="notice" role="status">{{ message }}</div>
 }

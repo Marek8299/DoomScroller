@@ -3,12 +3,13 @@ import { AuthPage } from './auth/auth';
 import { authGuard } from './core/auth.guard';
 import { feedUrlMatcher } from './feed-url-matcher';
 import { Feed } from './feed/feed';
+import { ProfilePage } from './profile/profile-page';
 import { Upload } from './upload/upload';
 
 export const routes: Routes = [
   // "/" is the feed; "/v/:id" is the same feed opened on one particular video (a shared link).
   { matcher: feedUrlMatcher, component: Feed },
-  { path: 'u/:username', component: Feed },
+  { path: 'u/:username', component: ProfilePage },
   { path: 'upload', component: Upload, canActivate: [authGuard] },
   { path: 'login', component: AuthPage, data: { mode: 'login' } },
   { path: 'register', component: AuthPage, data: { mode: 'register' } },

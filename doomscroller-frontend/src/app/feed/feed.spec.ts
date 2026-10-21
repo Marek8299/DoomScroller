@@ -30,7 +30,6 @@ describe('Feed', () => {
     getFeed: vi.fn(),
     getById: vi.fn(),
     getUserVideos: vi.fn(),
-    getProfile: vi.fn(),
     mediaUrl: (u: string) => `http://x${u}`,
     like: vi.fn(),
     unlike: vi.fn(),
@@ -53,7 +52,6 @@ describe('Feed', () => {
     Object.values(api).forEach((f) => typeof f === 'function' && 'mockReset' in f && (f as any).mockReset());
     feedResponse = [video('a', { isOwner: true }), video('b'), video('c', { isOwner: true })];
     api.getFeed.mockImplementation(() => of(feedResponse));
-    api.getProfile.mockReturnValue(of(null));
 
     TestBed.configureTestingModule({
       providers: [
@@ -87,17 +85,6 @@ describe('Feed', () => {
     // The next poll still contains 'a' (the request left the server before the delete happened).
     await flush(8000);
     expect(titles()).toEqual(['Title b', 'Title c']);
-  });
-
-  it('refreshes the profile header after a delete so its counts stay right', async () => {
-    fixture.componentRef.setInput('username', 'someone');
-    await flush();
-    const before = api.getProfile.mock.calls.length;
-
-    (fixture.componentInstance as any).onDeleted('a');
-    await flush();
-
-    expect(api.getProfile.mock.calls.length).toBe(before + 1);
   });
 
   it('saving an edit swaps in the server\'s version and closes the sheet', async () => {
@@ -176,14 +163,15 @@ describe('Feed', () => {
       expect(navigate).not.toHaveBeenCalled();
     });
 
-    it('never touches the address bar on an author page', async () => {
+    it('keeps the author in the address while you watch their videos', async () => {
       fixture.componentRef.setInput('username', 'someone');
       api.getUserVideos.mockReturnValue(of(feedResponse));
       await flush();
 
       visible('a');
+      expect(navigate).toHaveBeenCalledWith(['/u', 'someone', 'v', 'a'], { replaceUrl: true });
       visible('b');
-      expect(navigate).not.toHaveBeenCalled();
+      expect(navigate).toHaveBeenLastCalledWith(['/u', 'someone', 'v', 'b'], { replaceUrl: true });
     });
   });
 
@@ -235,6 +223,22 @@ describe('Feed', () => {
 
       expect(api.getFeed.mock.calls.length).toBe(loads);
       expect(api.getById).toHaveBeenCalledTimes(1);
+      expect(titles()).toEqual(['Title b', 'Title a', 'Title c']);
+    });
+
+    it('opened from a profile, shows that video first and then the rest of that author\'s videos', async () => {
+      api.getById.mockReturnValue(of(video('b')));
+      api.getUserVideos.mockReturnValue(of([video('a'), video('b'), video('c')]));
+      api.getFeed.mockClear(); // the beforeEach feed already asked for the global list
+      fixture = TestBed.createComponent(Feed);
+      fixture.componentRef.setInput('username', 'someone');
+      fixture.componentRef.setInput('id', 'b');
+      await flush();
+      await flush();
+      el = fixture.nativeElement;
+
+      expect(api.getUserVideos).toHaveBeenCalledWith('someone', 0, 20);
+      expect(api.getFeed).not.toHaveBeenCalledWith(0, 20); // not the global feed
       expect(titles()).toEqual(['Title b', 'Title a', 'Title c']);
     });
 

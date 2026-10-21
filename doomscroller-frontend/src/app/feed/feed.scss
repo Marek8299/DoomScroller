@@ -74,23 +74,6 @@
   }
 }
 
-.profile-banner {
-  position: fixed;
-  top: 52px;
-  left: 0;
-  right: 0;
-  z-index: 9;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  pointer-events: none;
-
-  span {
-    opacity: 0.75;
-  }
-}
 
 .author {
   pointer-events: auto; // ...except the author link

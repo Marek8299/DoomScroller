@@ -2,7 +2,7 @@ import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { LikeState, UserProfile, VideoItem } from '../models/video.model';
+import { LikeState, VideoItem } from '../models/video.model';
 
 export interface UploadProgress {
   progressPercent: number;
@@ -36,10 +36,6 @@ export class VideoService {
 
   unlike(videoId: string): Observable<LikeState> {
     return this.http.delete<LikeState>(`${this.base}/videos/${videoId}/like`);
-  }
-
-  getProfile(username: string): Observable<UserProfile> {
-    return this.http.get<UserProfile>(`${this.base}/users/${encodeURIComponent(username)}`);
   }
 
   /** One author's videos. Their own unfinished uploads are included when it's the signed-in author asking. */

@@ -17,10 +17,10 @@ public class MediaFileCleaner : IMediaFileCleaner
     private readonly StringComparison _pathComparison;
     private readonly ILogger<MediaFileCleaner> _logger;
 
-    public MediaFileCleaner(IWebHostEnvironment env, ILogger<MediaFileCleaner> logger)
+    public MediaFileCleaner(StoragePaths storage, ILogger<MediaFileCleaner> logger)
     {
         _logger = logger;
-        _storageRoot = Path.GetFullPath(Path.Combine(env.ContentRootPath, "Storage")) + Path.DirectorySeparatorChar;
+        _storageRoot = Path.GetFullPath(storage.Root) + Path.DirectorySeparatorChar;
         _pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
     }
 

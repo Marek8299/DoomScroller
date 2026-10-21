@@ -14,11 +14,13 @@ public class CommentsController : ControllerBase
 {
     private readonly ICommentRepository _comments;
     private readonly IVideoRepository _videos;
+    private readonly ILikeRepository _likes;
 
-    public CommentsController(ICommentRepository comments, IVideoRepository videos)
+    public CommentsController(ICommentRepository comments, IVideoRepository videos, ILikeRepository likes)
     {
         _comments = comments;
         _videos = videos;
+        _likes = likes;
     }
 
     /// <summary>A video's comments, newest first. Anyone can read them; only finished videos have any.</summary>
@@ -34,7 +36,10 @@ public class CommentsController : ControllerBase
 
         var viewerId = User.GetUserId();
         var comments = await _comments.GetForVideoAsync(videoId, skip, take, ct);
-        return Ok(comments.Select(c => ToDto(c, c.Author?.Username ?? "[deleted]", viewerId, video)).ToList());
+        var likes = await _likes.GetCommentInfoAsync(comments.Select(c => c.Id).ToList(), viewerId, ct);
+        return Ok(comments
+            .Select(c => ToDto(c, c.Author?.Username ?? "[deleted]", viewerId, video, likes.GetValueOrDefault(c.Id)))
+            .ToList());
     }
 
     [HttpPost]
@@ -80,7 +85,31 @@ public class CommentsController : ControllerBase
         return video is { Status: RenditionStatus.Ready } ? video : null;
     }
 
-    private static CommentDto ToDto(VideoComment c, string authorName, Guid? viewerId, VideoItem video) =>
+    /// <summary>Like a comment. Idempotent.</summary>
+    [HttpPut("{commentId:guid}/like")]
+    [Authorize]
+    public Task<ActionResult<LikeStateDto>> Like(Guid videoId, Guid commentId, CancellationToken ct) =>
+        SetLikedAsync(videoId, commentId, true, ct);
+
+    [HttpDelete("{commentId:guid}/like")]
+    [Authorize]
+    public Task<ActionResult<LikeStateDto>> Unlike(Guid videoId, Guid commentId, CancellationToken ct) =>
+        SetLikedAsync(videoId, commentId, false, ct);
+
+    private async Task<ActionResult<LikeStateDto>> SetLikedAsync(Guid videoId, Guid commentId, bool liked, CancellationToken ct)
+    {
+        if (await FindPublicVideoAsync(videoId, ct) is null) return NotFound();
+
+        var comment = await _comments.GetAsync(commentId, ct);
+        if (comment is null || comment.VideoId != videoId) return NotFound();
+
+        var state = await _likes.SetCommentLikedAsync(commentId, User.GetUserId()!.Value, liked, ct);
+        return Ok(new LikeStateDto(state.Count, state.LikedByViewer));
+    }
+
+    private static CommentDto ToDto(VideoComment c, string authorName, Guid? viewerId, VideoItem video, LikeInfo? likes = null) =>
         new(c.Id, c.Text, c.CreatedAtUtc, new AuthorDto(authorName),
-            CanDelete: viewerId is not null && (c.AuthorId == viewerId || video.AuthorId == viewerId));
+            CanDelete: viewerId is not null && (c.AuthorId == viewerId || video.AuthorId == viewerId),
+            LikeCount: likes?.Count ?? 0,
+            LikedByMe: likes?.LikedByViewer ?? false);
 }

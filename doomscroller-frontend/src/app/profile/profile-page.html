@@ -1,0 +1,159 @@
+@if (loading()) {
+  <div class="state">Loading…</div>
+} @else if (failure() === 'not-found') {
+  <div class="state">
+    <p>No such user.</p>
+    <a routerLink="/" class="link">Back to the feed</a>
+  </div>
+} @else if (failure() === 'error') {
+  <div class="state">
+    <p class="error">Could not load this profile.</p>
+    <button type="button" class="link" (click)="retry()">Try again</button>
+  </div>
+} @else if (profile(); as p) {
+  <div class="profile">
+    <header class="head">
+      <app-avatar [username]="p.username" [url]="p.avatarUrl" [size]="104" />
+      <h1>&#64;{{ p.username }}</h1>
+
+      <ul class="stats">
+        <li><strong>{{ followers() }}</strong> {{ p.followerCount === 1 ? 'Follower' : 'Followers' }}</li>
+        <li><strong>{{ totalLikes() }}</strong> {{ p.likeCount === 1 ? 'Like' : 'Likes' }}</li>
+      </ul>
+
+      @if (p.bio; as bio) {
+        <p class="bio">{{ bio }}</p>
+      }
+
+      <app-follow-button [profile]="p" (followChanged)="onFollowChanged($event)" (editRequested)="editing.set(true)" />
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Profile content" (keydown)="onTabKey($event)">
+      @for (t of tabs(); track t.id) {
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [id]="'tab-' + t.id"
+          [attr.aria-selected]="tab() === t.id"
+          [attr.aria-controls]="'panel-' + t.id"
+          [attr.tabindex]="tab() === t.id ? 0 : -1"
+          [class.active]="tab() === t.id"
+          (click)="selectTab(t.id)"
+        >
+          {{ t.label }}
+        </button>
+      }
+    </div>
+
+    <!-- VIDEOS -->
+    @if (tab() === 'videos') {
+      <section class="panel" role="tabpanel" id="panel-videos" aria-labelledby="tab-videos">
+        @if (videos.loading()) {
+          <p class="note">Loading…</p>
+        } @else if (videos.error()) {
+          <p class="note error">Couldn't load videos.</p>
+        } @else if (videos.items().length === 0) {
+          <p class="note">
+            No videos yet.
+            @if (p.isSelf) {
+              <a routerLink="/upload" class="link">Upload your first one</a>
+            }
+          </p>
+        } @else {
+          <app-video-grid [videos]="videos.items()" />
+        }
+        @if (videos.hasMore()) {
+          <button type="button" class="more" [disabled]="videos.loadingMore()" (click)="videos.loadMore()">
+            {{ videos.loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      </section>
+    }
+
+    <!-- COMMENTS -->
+    @if (tab() === 'comments') {
+      <section class="panel" role="tabpanel" id="panel-comments" aria-labelledby="tab-comments">
+        @if (comments.loading()) {
+          <p class="note">Loading…</p>
+        } @else if (comments.error()) {
+          <p class="note error">Couldn't load comments.</p>
+        } @else if (comments.items().length === 0) {
+          <p class="note">No comments yet.</p>
+        }
+        @for (c of comments.items(); track c.id) {
+          <app-comment-row
+            [text]="c.text"
+            [createdAtUtc]="c.createdAtUtc"
+            [likeCount]="c.likeCount"
+            [videoTitle]="c.video.title"
+            [videoAuthor]="c.video.authorUsername"
+          />
+        }
+        @if (comments.hasMore()) {
+          <button type="button" class="more" [disabled]="comments.loadingMore()" (click)="comments.loadMore()">
+            {{ comments.loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      </section>
+    }
+
+    <!-- LIKED -->
+    @if (tab() === 'liked') {
+      <section class="panel" role="tabpanel" id="panel-liked" aria-labelledby="tab-liked">
+        @if (p.isSelf && !p.likesPublic) {
+          <p class="private">Only you can see this. You can change that in Edit profile.</p>
+        }
+        @if (liked.loading()) {
+          <p class="note">Loading…</p>
+        } @else if (liked.error()) {
+          <p class="note error">
+            {{ liked.error()?.status === 403 ? "This person keeps their likes private." : "Couldn't load liked content." }}
+          </p>
+        } @else if (liked.items().length === 0) {
+          <p class="note">Nothing liked yet.</p>
+        }
+
+        @for (item of liked.items(); track $index) {
+          @if (item.type === 'video' && item.video; as v) {
+            <a class="liked-video" [routerLink]="videoLink(v)">
+              <span class="liked-thumb">
+                @if (thumb(v); as src) {
+                  <img [src]="src" alt="" loading="lazy" />
+                } @else {
+                  <span class="placeholder" aria-hidden="true">&#9654;</span>
+                }
+              </span>
+              <span class="liked-info">
+                <strong>{{ v.title }}</strong>
+                @if (v.author; as author) {
+                  <span>by &#64;{{ author.username }}</span>
+                }
+                <span class="muted">Liked {{ ago(item.likedAtUtc) }}</span>
+              </span>
+            </a>
+          } @else if (item.comment; as c) {
+            <app-comment-row
+              [text]="c.text"
+              [createdAtUtc]="c.createdAtUtc"
+              [likeCount]="c.likeCount"
+              [videoTitle]="c.video.title"
+              [videoAuthor]="c.video.authorUsername"
+              [authorUsername]="c.author.username"
+            />
+          }
+        }
+
+        @if (liked.hasMore()) {
+          <button type="button" class="more" [disabled]="liked.loadingMore()" (click)="liked.loadMore()">
+            {{ liked.loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      </section>
+    }
+  </div>
+
+  @if (editing()) {
+    <app-edit-profile-dialog [profile]="p" (updated)="onProfileEdited($event)" (closed)="editing.set(false)" />
+  }
+}

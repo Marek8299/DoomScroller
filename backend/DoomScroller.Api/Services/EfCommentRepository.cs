@@ -24,6 +24,25 @@ public class EfCommentRepository : ICommentRepository
             .Take(take)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<CommentOnVideo>> GetByAuthorAsync(
+        Guid authorId, int skip, int take, CancellationToken ct = default) =>
+        await (from comment in _db.Comments
+               where comment.AuthorId == authorId
+               join video in _db.Videos on comment.VideoId equals video.Id
+               where video.Status == RenditionStatus.Ready
+               orderby comment.CreatedAtUtc descending, comment.Id descending
+               select new CommentOnVideo(
+                   comment.Id,
+                   comment.Text,
+                   comment.CreatedAtUtc,
+                   comment.Author!.Username,
+                   video.Id,
+                   video.Title,
+                   video.Author != null ? video.Author.Username : null))
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+
     public Task<VideoComment?> GetAsync(Guid commentId, CancellationToken ct = default) =>
         _db.Comments.Include(c => c.Author).FirstOrDefaultAsync(c => c.Id == commentId, ct);
 

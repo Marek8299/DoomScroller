@@ -34,6 +34,7 @@ public static class VideoMapper
             likes?.Count ?? 0,
             likes?.LikedByViewer ?? false,
             commentCount,
-            isOwner);
+            isOwner,
+            MediaUrls.Thumbnail(video.ThumbnailFileName));
     }
 }

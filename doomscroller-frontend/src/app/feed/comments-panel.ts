@@ -7,6 +7,7 @@ import { AuthService } from '../core/services/auth.service';
 import { CommentService } from '../core/services/comment.service';
 import { formatCount } from '../core/format-count';
 import { timeAgo } from '../core/time-ago';
+import { CommentLike } from './comment-like';
 
 const PAGE_SIZE = 20;
 export const MAX_COMMENT_LENGTH = 500; // mirrors CommentRules.MaxLength on the backend
@@ -14,7 +15,7 @@ export const MAX_COMMENT_LENGTH = 500; // mirrors CommentRules.MaxLength on the 
 /** Bottom sheet over a video: its comments (newest first), a box to add one, delete where allowed. */
 @Component({
   selector: 'app-comments-panel',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CommentLike],
   templateUrl: './comments-panel.html',
   styleUrl: './comments-panel.scss',
   host: { '(document:keydown.escape)': 'onEscape()' }

@@ -16,5 +16,20 @@ public class AppUser
 
     public string PasswordHash { get; set; } = string.Empty;
 
+    /// <summary>Short self-description shown on the profile (see ProfileRules for the limits).</summary>
+    public string? Bio { get; set; }
+
+    /// <summary>
+    /// File name (not path) of the profile picture inside Storage/avatars, or null for none. A new
+    /// name is generated on every change, so each picture's URL never changes and can be cached forever.
+    /// </summary>
+    public string? AvatarFileName { get; set; }
+
+    /// <summary>
+    /// Whether other people can see what this user has liked. Off by default: likes are more private
+    /// than posts, so exposing them is the user's choice.
+    /// </summary>
+    public bool LikesPublic { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 }

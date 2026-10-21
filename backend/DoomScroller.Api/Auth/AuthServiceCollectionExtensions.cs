@@ -9,6 +9,7 @@ public static class AuthServiceCollectionExtensions
 {
     public const string AuthRateLimitPolicy = "auth";
     public const string CommentsRateLimitPolicy = "comments";
+    public const string UploadsRateLimitPolicy = "uploads";
 
     /// <summary>
     /// Cookie authentication for the SPA: an HttpOnly cookie (not reachable from JavaScript, unlike a
@@ -69,6 +70,19 @@ public static class AuthServiceCollectionExtensions
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    }));
+
+            // Profile-picture uploads each start an image conversion, so they get a tighter per-user limit.
+            options.AddPolicy(UploadsRateLimitPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.User.GetUserId()?.ToString()
+                        ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                        ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0
                     }));
