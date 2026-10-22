@@ -1,0 +1,65 @@
+:host {
+  display: inline-flex;
+}
+
+.more {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: #888;
+  }
+
+  &:hover svg,
+  &[aria-expanded='true'] svg {
+    fill: #fff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+  }
+}
+
+.menu {
+  position: fixed; // against the viewport, so the scrolling comment list can't clip it
+  z-index: 40;
+  min-width: 130px;
+  padding: 4px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: #2a2a2a;
+    outline: none;
+  }
+
+  &.danger {
+    color: #fe2c55;
+  }
+}

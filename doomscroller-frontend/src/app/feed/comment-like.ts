@@ -23,21 +23,19 @@ import { CommentService } from '../core/services/comment.service';
   `,
   styles: `
     :host {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
+      display: inline-flex;
+      align-items: center; // heart and count on one line, so a short comment never leaves the count hanging below
+      gap: 1px;
       flex: none;
-      min-width: 32px;
       color: #aaa;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
     }
 
     button {
       display: grid;
       place-items: center;
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       padding: 0;
       background: none;
       border: none;
@@ -60,6 +58,10 @@ import { CommentService } from '../core/services/comment.service';
       &:focus-visible {
         outline: 2px solid #fff;
       }
+    }
+
+    .count {
+      min-width: 1ch;
     }
   `
 })

@@ -26,10 +26,12 @@ public class AppUser
     public string? AvatarFileName { get; set; }
 
     /// <summary>
-    /// Whether other people can see what this user has liked. Off by default: likes are more private
-    /// than posts, so exposing them is the user's choice.
+    /// Whether other people can see what this user has liked. On by default for new accounts; the
+    /// user can turn it off in Edit profile. (Accounts that existed before this default changed keep
+    /// the value they already have: a silent switch to public would expose likes of people who
+    /// never chose that.)
     /// </summary>
-    public bool LikesPublic { get; set; }
+    public bool LikesPublic { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 }

@@ -15,13 +15,19 @@
 
     @for (comment of comments(); track comment.id) {
       <li class="comment">
-        <div class="body">
         <div class="meta">
           <a class="author" [routerLink]="['/u', comment.author.username]">&#64;{{ comment.author.username }}</a>
           <span class="time">{{ timeAgo(comment.createdAtUtc) }}</span>
           @if (comment.canDelete && confirmingId() !== comment.id) {
-            <button type="button" class="delete" aria-label="Delete comment" (click)="askDelete(comment)">Delete</button>
+            <app-comment-menu (deleteRequested)="askDelete(comment)" />
           }
+          <app-comment-like
+            class="like"
+            [videoId]="videoId()"
+            [commentId]="comment.id"
+            [count]="comment.likeCount"
+            [likedByMe]="comment.likedByMe"
+          />
         </div>
         <p class="text">{{ comment.text }}</p>
 
@@ -32,8 +38,6 @@
             <button type="button" class="confirm-delete" (click)="remove(comment)">Delete</button>
           </div>
         }
-        </div>
-        <app-comment-like [videoId]="videoId()" [commentId]="comment.id" [count]="comment.likeCount" [likedByMe]="comment.likedByMe" />
       </li>
     }
 

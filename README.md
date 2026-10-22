@@ -335,7 +335,10 @@ like everything else about unfinished ones.
   video"; comments cascade away with their video or author.
 - **UI**: the speech-bubble button in the action column opens a bottom sheet over the video (the
   video keeps playing above it). Enter posts, Shift+Enter adds a line, Escape closes, "Load more"
-  pages through older ones. Posting is a send-icon button. Deleting asks first: "Delete this comment?"
+  pages through older ones. Posting is a send-icon button. Each comment is one top row, the author, the age, a "..." menu (only on
+  comments you may delete) and, pushed to the far right, the like with its count beside the heart, so
+  the like lines up with the name and never ends up below a short comment. Delete lives in the "..."
+  menu, and Escape closes an open menu before it would close the sheet. Deleting asks first: "Delete this comment?"
   appears inline under the comment with Cancel focused (so a stray Enter can't delete it), and Escape
   backs out of the question before it would close the panel. After confirming, the comment disappears
   at once and comes back if the server refuses; a failed post keeps what you typed.
@@ -418,9 +421,13 @@ Tabs load the first time you open them, in pages with "Load more". The Liked lis
 taking the newest `skip + take` likes of each kind and merging them by like time, which gives the
 right page however videos and comments interleave.
 
-**Liked is private by default.** What someone likes is more private than what they post, so only the
-owner sees that tab unless they switch on "Show what I've liked on my profile" in Edit profile. The
-server enforces it (403), the UI just hides the tab. Say if you'd prefer public by default.
+**Liked is public by default.** New accounts show their Liked tab to everyone; the owner can switch
+that off in Edit profile ("Show what I've liked on my profile"), after which only they see it. The
+server enforces it (403 for others), the UI just hides the tab. This is a code default for *new*
+accounts; there's no schema change. Accounts created before the default changed keep the value they
+already had (private), because quietly making them public would expose likes of people who never chose
+that. If you want every existing account public too, it's one statement:
+`UPDATE Users SET LikesPublic = 1;`
 
 **Following**: one row per (follower, followee) with a composite key, so a double follow is impossible
 at the database level; follow/unfollow are idempotent; you can't follow yourself; the button updates

@@ -84,12 +84,23 @@ describe('CommentsPanel', () => {
     expect(el.textContent).toContain("Couldn't load comments");
   });
 
-  it('only offers Delete on comments the viewer may delete', async () => {
+  it('only offers the "..." menu on comments the viewer may delete', async () => {
     api.getComments.mockReturnValue(of([comment('a', { canDelete: true }), comment('b')]));
     await create();
-    const deletes = el.querySelectorAll('.delete');
-    expect(deletes).toHaveLength(1);
-    expect(rows()[0].contains(deletes[0])).toBe(true);
+    const menus = el.querySelectorAll('app-comment-menu');
+    expect(menus).toHaveLength(1);
+    expect(rows()[0].contains(menus[0])).toBe(true);
+  });
+
+  it('lays each comment out as one top row (who, when, menu, like) over the text, so the like never sits below a short comment', async () => {
+    api.getComments.mockReturnValue(of([comment('a', { canDelete: true })]));
+    await create();
+
+    const meta = rows()[0].querySelector('.meta')!;
+    const order = Array.from(meta.children).map((c) => c.className.split(' ')[0] || c.tagName.toLowerCase());
+    expect(order).toEqual(['author', 'time', 'app-comment-menu', 'like']);
+    expect(rows()[0].querySelector('.text')).not.toBeNull();
+    expect(meta.contains(rows()[0].querySelector('.text'))).toBe(false);
   });
 
   describe('posting', () => {
@@ -187,8 +198,11 @@ describe('CommentsPanel', () => {
   });
 
   describe('deleting', () => {
+    // Delete now lives in the "..." menu: open it, then choose Delete.
     const askToDelete = async (index = 0) => {
-      (el.querySelectorAll('.delete')[index] as HTMLButtonElement).click();
+      (el.querySelectorAll('app-comment-menu .more')[index] as HTMLButtonElement).click();
+      await fixture.whenStable();
+      (el.querySelector('app-comment-menu .item') as HTMLButtonElement).click();
       await fixture.whenStable();
     };
     const confirmDelete = async () => {
@@ -205,7 +219,7 @@ describe('CommentsPanel', () => {
       expect(api.delete).not.toHaveBeenCalled();
       expect(rows()).toHaveLength(1);
       expect(el.querySelector('.confirm')!.textContent).toContain('Delete this comment?');
-      expect(el.querySelector('.delete')).toBeNull(); // the link is replaced by the question
+      expect(el.querySelector('app-comment-menu')).toBeNull(); // the menu is replaced by the question
     });
 
     it('focuses Cancel, so a stray Enter cannot delete anything', async () => {
@@ -231,7 +245,7 @@ describe('CommentsPanel', () => {
       expect(api.delete).not.toHaveBeenCalled();
       expect(rows()).toHaveLength(1);
       expect(el.querySelector('.confirm')).toBeNull();
-      expect(el.querySelector('.delete')).not.toBeNull(); // back to the normal link
+      expect(el.querySelector('app-comment-menu')).not.toBeNull(); // back to the normal menu
       expect(emitted.count).toEqual([]);
     });
 
@@ -240,7 +254,7 @@ describe('CommentsPanel', () => {
       await create(2);
 
       await askToDelete(0);
-      await askToDelete(0); // the first row's link is gone, so index 0 is now the second comment's link
+      await askToDelete(0); // the first row's menu is gone while it asks, so index 0 is now the second comment's menu
 
       expect(el.querySelectorAll('.confirm')).toHaveLength(1);
       expect(rows()[1].querySelector('.confirm')).not.toBeNull();
@@ -258,6 +272,26 @@ describe('CommentsPanel', () => {
 
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       expect(emitted.closed).toBe(1);
+    });
+
+    it('Escape closes an open "..." menu first, leaving the sheet open; a second Escape then closes the sheet', async () => {
+      api.getComments.mockReturnValue(of([comment('a', { canDelete: true })]));
+      await create(1);
+      document.body.appendChild(el); // keyboard events bubble to the document only from inside it
+
+      (el.querySelector('app-comment-menu .more') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(el.querySelector('app-comment-menu .menu')).not.toBeNull();
+
+      const item = el.querySelector('app-comment-menu .item') as HTMLElement;
+      item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await fixture.whenStable();
+      expect(el.querySelector('app-comment-menu .menu')).toBeNull();
+      expect(emitted.closed).toBe(0);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(emitted.closed).toBe(1);
+      el.remove();
     });
 
     it('once confirmed, removes the comment at once and lowers the total', async () => {

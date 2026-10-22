@@ -29,21 +29,16 @@
 }
 
 .comment {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 0;
+  padding: 8px 0 10px;
 }
 
-.body {
-  flex: 1;
-  min-width: 0; // lets long words wrap instead of pushing the heart off-screen
-}
-
+// One row: who, when, the "..." menu, and (pushed to the far right) the like. The like shares the row
+// with the name, so it lines up with it and never ends up below a short comment.
 .meta {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
   font-size: 0.8rem;
 }
 
@@ -57,22 +52,12 @@
   color: #888;
 }
 
-.delete {
+.like {
   margin-left: auto;
-  background: none;
-  border: none;
-  padding: 0;
-  color: #888;
-  font: inherit;
-  cursor: pointer;
-
-  &:hover {
-    color: #fe2c55;
-  }
 }
 
 .text {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 0.9rem;
   line-height: 1.35;
   white-space: pre-wrap; // keep the line breaks people typed

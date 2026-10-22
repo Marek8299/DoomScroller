@@ -128,8 +128,8 @@ public class UsersController : ControllerBase
         var likedVideos = await _likes.GetLikedVideosAsync(author.Id, wanted, ct);
         var likedComments = await _likes.GetLikedCommentsAsync(author.Id, wanted, ct);
 
-        var page = likedVideos.Select(v => (At: v.LikedAtUtc, Video: v, Comment: (LikedComment?)null))
-            .Concat(likedComments.Select(c => (At: c.LikedAtUtc, Video: (LikedVideo?)null, Comment: (LikedComment?)c)))
+        var page = likedVideos.Select(v => new LikedEntry(v.LikedAtUtc, v, null))
+            .Concat(likedComments.Select(c => new LikedEntry(c.LikedAtUtc, null, c)))
             .OrderByDescending(x => x.At)
             .Skip(skip)
             .Take(take)
@@ -170,6 +170,9 @@ public class UsersController : ControllerBase
         var state = await _follows.SetFollowingAsync(viewerId, target.Id, following, ct);
         return Ok(new FollowStateDto(state.FollowerCount, state.IsFollowing));
     }
+
+    /// <summary>One entry of the merged liked list: exactly one of Video / Comment is set.</summary>
+    private sealed record LikedEntry(DateTimeOffset At, LikedVideo? Video, LikedComment? Comment);
 
     private static LikedCommentDto ToLikedCommentDto(CommentOnVideo c, LikeInfo? likes) =>
         new(c.Id, c.Text, c.CreatedAtUtc, new AuthorDto(c.AuthorUsername),
